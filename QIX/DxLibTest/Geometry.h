@@ -9,7 +9,9 @@ struct Vector2 {
 		y *= scale;
 	}
 };
-
+bool operator==(const Vector2& lval , const Vector2& rval) {
+	return lval.x == rval.x && lval.y == rval.y;
+}
 typedef Vector2 Position2;
 
 Vector2 operator+(const Vector2& lval, const Vector2& rval) {

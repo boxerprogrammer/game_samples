@@ -2,6 +2,7 @@
 #include<vector>
 #include<list>
 #include<algorithm>
+#include<cassert>
 #include"Geometry.h"
 
 constexpr unsigned int scr_w = 640;
@@ -14,6 +15,7 @@ using namespace std;
 struct Segment {
 	Position2 a;//必ず左か上
 	Position2 b;//必ず右か下
+	//Segment* lastSeg = nullptr;
 	Segment(const Position2& lval, const Position2& rval) :a(lval), b(rval) {
 		if (rval.x < lval.x) {
 			a = rval;
@@ -37,6 +39,45 @@ struct Segment {
 bool operator==(const Segment& lval,const Segment& rval) {
 	return lval.a == rval.a && lval.b == rval.b;
 }
+
+///塗りつぶし範囲を返す
+///@param hSegs 水平辺
+///@param vSegs 垂直辺
+///@remarks それぞれのセグメントはソート済み(上→下)(左→右)のものとする。
+void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs) {
+	//std::sort(hSegs.begin(), hSegs.end(), [](const Segment& lval, const Segment& rval) {
+	//	lval.a.y < rval.a.y;
+	//});
+	//std::sort(vSegs.begin(), vSegs.end(), [](const Segment& lval, const Segment& rval) {
+	//	lval.a.x < rval.a.x;
+	//});
+	hSegs.sort([](const Segment& lval, const Segment& rval)->bool {
+			return lval.a.y < rval.a.y;
+	});
+	vSegs.sort([](const Segment& lval, const Segment& rval)->bool {
+			return lval.a.x < rval.a.x;
+	});
+	auto hit = hSegs.begin();
+	auto top = hSegs.begin()->a.y;
+	auto bottom = hSegs.back().a.y;
+	for (int y = top; y < bottom;++y) {
+		//++hit;
+		//if (hit == hSegs.end())break;
+		std::vector<Segment> xpoints;
+		copy_if(vSegs.begin(), vSegs.end(), back_inserter(xpoints), [y](const Segment& vseg)->bool {
+			return vseg.a.y <= y&&y <= vseg.b.y;
+		});
+		auto drawcount= xpoints.size()/2;
+		for (int i = 0; i < drawcount; ++i) {
+			DrawBox(xpoints[i*2].a.x,y, xpoints[i * 2+1].a.x,y+1,0xffaaaa,true);
+		}
+		//y = hit->a.y;
+	}
+}
+//sort(hSegs.begin(), hSegs.end(), [](const Segment& lval, const Segment& rval) {
+//	lval.a.y <
+//});
+
 int main() {
 	ChangeWindowMode(true);
 	DxLib::SetWindowText("QIX");
@@ -66,7 +107,7 @@ int main() {
 
 	//右を判定。直つなぎは数に入れない。
 	auto GetRight = [](const Segment& hSeg, const Segment& vSeg)->int {
-		if (hSeg.b == vSeg.b || hSeg.a == vSeg.a)return -1;
+		if (hSeg.b == vSeg.b || hSeg.a == vSeg.a || hSeg.b == vSeg.a || hSeg.a == vSeg.b)return -1;
 		if (hSeg.a.x > vSeg.a.x)return -1;
 		if (vSeg.a.y <= hSeg.a.y && hSeg.a.y <= vSeg.b.y) {
 			//あたりました！！
@@ -75,7 +116,7 @@ int main() {
 		return -1;
 	};
 	auto SearchMinRight=[GetRight](const Segment& hseg, const std::list<Segment>& segments)->int {
-		int minim = 400;
+		int minim = 450;
 		for (auto& s : segments) {
 			auto right = GetRight(hseg, s);
 			if (right == -1)continue;
@@ -91,11 +132,11 @@ int main() {
 	Segment leftseg(0, 0, 0, 400);
 	Segment rightseg(450, 0, 450, 400);
 
-	hSegments.emplace_back(0, 0, 450, 0);//上
-	hSegments.emplace_back(0, 400, 450, 400);//下
+	//hSegments.emplace_back(0, 0, 450, 0);//上
+	//hSegments.emplace_back(0, 400, 450, 400);//下
 
-	vSegments.emplace_back(0, 0, 0, 400);//左
-	vSegments.emplace_back(450, 0, 450, 400);//右
+	//vSegments.emplace_back(0, 0, 0, 400);//左
+	//vSegments.emplace_back(450, 0, 450, 400);//右
 
 
 	bool onTheFrame = true;//外枠の上にいるか？
@@ -104,13 +145,17 @@ int main() {
 		ClearDrawScreen();
 		DxLib::GetHitKeyStateAll(keystate);
 		if (keystate[KEY_INPUT_UP]) {
-			playerPos.y = max(play_areaY,playerPos.y -2);
+			auto pposy = max(play_areaY,playerPos.y -2);
+			
 			if (firstUp) {
 				startPos = playerPos-offset;
+				hSegments.push_back(bottomseg);
 				firstUp = false;
 			}
 			auto tmppos = playerPos - offset;
+			
 			if (onTheFrame || lastDirection == Direction::right || lastDirection == Direction::left) {
+				
 				if (!keypoints.empty()) {
 					if (keypoints.back().x == tmppos.x) {
 						vSegments.emplace_back(keypoints.back(), tmppos);
@@ -119,14 +164,19 @@ int main() {
 						hSegments.emplace_back(keypoints.back(), tmppos);
 					}
 				}
+				tmppos.y -= 1;
 				keypoints.push_back(tmppos);
 			}
+			playerPos.y = pposy;
 			onTheFrame = (playerPos.y == play_areaY);
 			lastDirection = Direction::up;
 		}else if (keystate[KEY_INPUT_DOWN]) {
-			playerPos.y  = min(play_areaY+400,playerPos.y + 2);
+
+			auto pposY = min(play_areaY+400,playerPos.y + 2);
 			auto tmppos = playerPos - offset;
+			
 			if (onTheFrame || lastDirection == Direction::right || lastDirection == Direction::left) {
+				
 				if (!keypoints.empty()) {
 					if (keypoints.back().x == tmppos.x) {
 						vSegments.emplace_back(keypoints.back(), tmppos);
@@ -135,9 +185,11 @@ int main() {
 						hSegments.emplace_back(keypoints.back(), tmppos);
 					}
 				}
+				tmppos.y += 1;
 				keypoints.push_back(tmppos);
 				onTheFrame = false;
 			}
+			playerPos.y = pposY;
 			onTheFrame = (playerPos.y == play_areaY + 400);
 
 			lastDirection = Direction::down;
@@ -145,10 +197,11 @@ int main() {
 			auto pposx = min(play_areaX+450,playerPos.x + 2);
 
 			//右壁に当たった時
-			if (pposx == play_areaX + 450) {
+			if (!onTheFrame&&pposx == play_areaX + 450) {
 				//FillConvex
 				auto tmppos = playerPos - offset;
 				hSegments.emplace_back(keypoints.back(), tmppos);
+				vSegments.push_back(rightseg);
 				DxLib::SetDrawScreen(area);
 
 				auto lastpos = startPos;
@@ -164,19 +217,31 @@ int main() {
 				//	DxLib::DrawBox(pos.x - 1, pos.y - 1, tmppos.x + 1, lastpos.y + 1, 0xaaffaa, true);
 				//	lastpos = pos;
 				//}
-				auto hSegit = hSegments.rbegin();
-				for (; hSegit != hSegments.rend();++hSegit) {
-					if (*hSegit == topseg || *hSegit == bottomseg)continue;
-					int y = hSegit->a.y;
-					auto it = find_if(hSegit, hSegments.rend(), [y](const Segment& seg)->bool {
-						return y < seg.a.y;
-					});
-					if (it != hSegments.rend()) {
-						int right = SearchMinRight(*hSegit, vSegments);
-						DxLib::DrawBox(hSegit->a.x, hSegit->a.y-1, right+ 1, it->b.y + 1, 0xaaffaa, true);
-					}
-				}
-
+				//auto hSegit = hSegments.rbegin();
+				//for (; hSegit != hSegments.rend();++hSegit) {
+				//	if (*hSegit == topseg || *hSegit == bottomseg)continue;
+				//	int y = hSegit->a.y;
+				//	auto it = find_if(hSegit, hSegments.rend(), [y](const Segment& seg)->bool {
+				//		return y < seg.a.y;//自分より低い位置にある線分を探す
+				//	});
+				//	if (it != hSegments.rend()) {
+				//		int right = SearchMinRight(*hSegit, vSegments);
+				//		if (hSegit->a.x == it->a.x || hSegit->a.x == it->b.x) {
+				//			DxLib::DrawBox(hSegit->a.x, hSegit->a.y - 1, right + 1, it->b.y + 1, 0xaaffaa, true);
+				//		}
+				//		else if((hSegit->b.x == it->a.x || hSegit->b.x == it->b.x)){
+				//			DxLib::DrawBox(hSegit->b.x, hSegit->a.y - 1, right + 1, it->b.y + 1, 0xaaffaa, true);
+				//		}
+				//		else {
+				//			DxLib::DrawBox(hSegit->a.x, hSegit->a.y - 1, right + 1, it->b.y + 1, 0xaaffaa, true);
+				//		}
+				//	}
+				//	else {
+				//		assert(0);
+				//	}
+				//}
+				FillRange(hSegments, vSegments);
+				onTheFrame = true;
 				keypoints.clear();
 				vSegments.clear();
 				hSegments.clear();
@@ -204,7 +269,7 @@ int main() {
 			lastDirection = Direction::right;
 			onTheFrame=playerPos.x == play_areaX + 450;
 		}else if (keystate[KEY_INPUT_LEFT]) {
-			playerPos.x = max(play_areaX , playerPos.x - 2);
+			auto pposX = max(play_areaX , playerPos.x - 2);
 			auto tmppos = playerPos - offset;
 			if (onTheFrame || lastDirection == Direction::up || lastDirection == Direction::down) {
 
@@ -219,6 +284,7 @@ int main() {
 
 				keypoints.push_back(tmppos);
 			}
+			playerPos.x = pposX;
 			lastDirection = Direction::left;
 			onTheFrame = playerPos.x == play_areaX;
 		}

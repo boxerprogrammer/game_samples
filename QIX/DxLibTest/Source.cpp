@@ -39,6 +39,7 @@ struct Segment {
 bool operator==(const Segment& lval,const Segment& rval) {
 	return lval.a == rval.a && lval.b == rval.b;
 }
+int rewardH;
 
 ///ìhÇËÇ¬Ç‘ÇµîÕàÕÇï‘Ç∑
 ///@param hSegs êÖïΩï”
@@ -73,6 +74,7 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs) {
 				y == xpoints[i + 1].b.y &&
 				(i + 2) < xpoints.size()) {
 				DrawBox(xpoints[i].a.x, y, xpoints[i+2].a.x, y + 1, 0xffaaaa, true);
+				DxLib::DrawRectGraph(xpoints[i].a.x, y, xpoints[i].a.x, y, abs(xpoints[i + 2].a.x - xpoints[i].a.x), 1, rewardH,false);
 				//DrawCircle(xpoints[i * 2 + 2].a.x, y, 3, 0xaaaaff);
 				++i;//è¡îÔÇµÇ‹ÇµÇΩ
 			}
@@ -81,11 +83,14 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs) {
 				y == xpoints[i + 2].b.y) || (y == xpoints[i + 1].b.y &&
 					y == xpoints[i + 2].a.y))) {
 				DrawBox(xpoints[i].a.x, y, xpoints[i + 2].a.x, y + 1, 0xffaaaa, true);
+				DxLib::DrawRectGraph(xpoints[i].a.x, y, xpoints[i].a.x, y, abs(xpoints[i + 2].a.x - xpoints[i].a.x), 1, rewardH, false);
 				++i;
 				//i += 2;//è¡îÔÇµÇ‹ÇµÇΩ
 			}
 			else {
 				DrawBox(xpoints[i].a.x, y, xpoints[i+1].a.x, y + 1, 0xffaaaa, true);
+				DxLib::DrawRectGraph(xpoints[i].a.x, y, xpoints[i].a.x, y, abs(xpoints[i + 1].a.x - xpoints[i].a.x), 1, rewardH, false);
+
 			}
 		}
 		//y = hit->a.y;
@@ -101,6 +106,7 @@ int main() {
 	DxLib::SetGraphMode(scr_w, scr_h, 32);
 	DxLib_Init();
 	DxLib::SetDrawScreen(DX_SCREEN_BACK);
+	rewardH = DxLib::LoadGraph("img/reward.jpg");
 
 	DrawString(100, 100, "Hello World", 0xffffff); 
 	Position2 playerPos(550 / 2,450);//
@@ -158,10 +164,11 @@ int main() {
 			auto pposy = max(play_areaY,playerPos.y -2);
 			
 			if (firstUp) {
-				startPos = playerPos-offset;
+				startPos = playerPos - offset;
 				hSegments.push_back(bottomseg);
 				firstUp = false;
 			}
+
 			auto tmppos = playerPos - offset;
 			
 			if (onTheFrame || lastDirection == Direction::right || lastDirection == Direction::left) {
@@ -275,6 +282,7 @@ int main() {
 		auto tmpPos = playerPos - Vector2(play_areaX, play_areaY);
 		//ãOê’âºï`âÊ
 		DxLib::DrawBox(tmpPos.x - 1, tmpPos.y - 1, tmpPos.x + 1, tmpPos.y + 1, 0xffffff, true);
+
 		/*DrawCircle(playerPos.x- play_areaX, playerPos.y- play_areaY, 1, 0xffffff, true);*/
 		DxLib::SetDrawScreen(DX_SCREEN_BACK);
 		//ãOê’ï`âÊ

@@ -16,10 +16,20 @@ constexpr unsigned int play_area_height = play_area_bottom - play_area_top;
 
 
 using namespace std;
+
+enum class Direction{
+	none,
+	up,
+	down,
+	left,
+	right
+};
+
 //縦と横しかない線分情報
 struct Segment {
 	Position2 a;//必ず左か上
 	Position2 b;//必ず右か下
+	Direction inner;//セグメントの内側方向
 	//Segment* lastSeg = nullptr;
 	Segment(const Position2& lval, const Position2& rval) :a(lval), b(rval) {
 		if (rval.x < lval.x) {
@@ -159,9 +169,7 @@ int main() {
 	
 	char field[225][200] = {};
 	bool firstUp = true;
-	enum class Direction {
-		up,right,down,left
-	};
+
 	Direction lastDirection = Direction::up;
 	std::list<Position2> keypoints;
 

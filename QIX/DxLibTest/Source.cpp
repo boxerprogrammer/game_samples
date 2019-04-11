@@ -7,8 +7,13 @@
 
 constexpr unsigned int scr_w = 640;
 constexpr unsigned int scr_h = 480;
-constexpr unsigned int play_areaX = 50;
-constexpr unsigned int play_areaY = 50;
+constexpr unsigned int play_area_left = 50;
+constexpr unsigned int play_area_top = 50;
+constexpr unsigned int play_area_right = 500;
+constexpr unsigned int play_area_bottom = 450;
+constexpr unsigned int play_area_width = play_area_right-play_area_left;
+constexpr unsigned int play_area_height = play_area_bottom - play_area_top;
+
 
 using namespace std;
 //c‚Æ‰¡‚µ‚©‚È‚¢ü•ªî•ñ
@@ -70,15 +75,17 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs) {
 		});
 		auto drawcount= xpoints.size();
 		for (int i = 0; i < drawcount-1; i+=2) {
-			if (y == xpoints[i].a.y && 
-				y == xpoints[i + 1].b.y &&
-				(i + 2) < xpoints.size()) {
+			if ((i + 2) < drawcount&&
+				(y == xpoints[i].a.y &&
+				y == xpoints[i + 1].b.y ) || 
+				(y == xpoints[i].b.y &&
+					y == xpoints[i + 1].a.y)) {
 				DrawBox(xpoints[i].a.x, y, xpoints[i+2].a.x, y + 1, 0xffaaaa, true);
 				DxLib::DrawRectGraph(xpoints[i].a.x, y, xpoints[i].a.x, y, abs(xpoints[i + 2].a.x - xpoints[i].a.x), 1, rewardH,false);
 				//DrawCircle(xpoints[i * 2 + 2].a.x, y, 3, 0xaaaaff);
 				++i;//Á”ï‚µ‚Ü‚µ‚½
 			}
-			else if ((i + 2) < xpoints.size()&&
+			else if ((i + 2) < drawcount&&
 				((y == xpoints[i + 1].a.y &&
 				y == xpoints[i + 2].b.y) || (y == xpoints[i + 1].b.y &&
 					y == xpoints[i + 2].a.y))) {
@@ -100,6 +107,10 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs) {
 //	lval.a.y <
 //});
 
+void FillVirtualScreen(int area, std::list<Segment> &hSegments, std::list<Segment> &vSegments, bool &onTheFrame, std::list<Position2> &keypoints);
+
+void DrawDebugStatus(std::list<Position2> &keypoints, std::list<Segment> &hSegments, std::list<Segment> &vSegments);
+
 int main() {
 	ChangeWindowMode(true);
 	DxLib::SetWindowText("QIX");
@@ -109,13 +120,14 @@ int main() {
 	rewardH = DxLib::LoadGraph("img/reward.jpg");
 
 	DrawString(100, 100, "Hello World", 0xffffff); 
-	Position2 playerPos(550 / 2,450);//
-	auto offset=Vector2(play_areaX, play_areaY);
+	Position2 playerPos(play_area_left + (play_area_right-play_area_left) / 2,play_area_bottom);//
+	auto offset=Vector2(play_area_left, play_area_top);
 	char keystate[256];
 
-	auto area = MakeScreen(450, 400,true);
+	auto area = MakeScreen(play_area_right-play_area_left,
+		play_area_bottom-play_area_top, 
+		true);
 	
-	Position2 startPos = playerPos-offset;
 	char field[225][200] = {};
 	bool firstUp = true;
 	enum class Direction {
@@ -136,7 +148,7 @@ int main() {
 		return -1;
 	};
 	auto SearchMinRight=[GetRight](const Segment& hseg, const std::list<Segment>& segments)->int {
-		int minim = 450;
+		int minim = play_area_right-play_area_left;
 		for (auto& s : segments) {
 			auto right = GetRight(hseg, s);
 			if (right == -1)continue;
@@ -147,152 +159,229 @@ int main() {
 	std::list<Segment> hSegments;//…•½•ûŒüü•ª
 	std::list<Segment> vSegments;//‚’¼•ûŒüü•ª
 	
-	Segment topseg(0,0,450,0);
-	Segment bottomseg(0, 400, 450, 400);
-	Segment leftseg(0, 0, 0, 400);
-	Segment rightseg(450, 0, 450, 400);
+	//ã‰º¶‰EƒZƒOƒƒ“ƒg
+	Segment topseg(0,0,play_area_width,0);
+	Segment bottomseg(0, play_area_height, play_area_width, play_area_height);
+	Segment leftseg(0, 0, 0, play_area_height);
+	Segment rightseg(play_area_width, 0, play_area_width, play_area_height);
 
 
 
 
 	bool onTheFrame = true;//ŠO˜g‚Ìã‚É‚¢‚é‚©H
 
+	auto count = GetTickCount();
 	while (!ProcessMessage()) {
+		
 		ClearDrawScreen();
 		DxLib::GetHitKeyStateAll(keystate);
-		if (keystate[KEY_INPUT_UP]) {
-			auto pposy = max(play_areaY,playerPos.y -2);
-			
-			if (firstUp) {
-				startPos = playerPos - offset;
-				hSegments.push_back(bottomseg);
-				firstUp = false;
-			}
+		if (keystate[KEY_INPUT_UP]&&playerPos.y > play_area_top) {
+			auto pposy = max(play_area_top,playerPos.y -2);
+			if (playerPos.x > play_area_left && playerPos.x < play_area_right) {
+				if (playerPos.y == play_area_bottom) {
+					hSegments.push_back(bottomseg);
+				}
 
-			auto tmppos = playerPos - offset;
-			
-			if (onTheFrame || lastDirection == Direction::right || lastDirection == Direction::left) {
-				
-				if (!keypoints.empty()) {
-					if (keypoints.back().x == tmppos.x) {
-						vSegments.emplace_back(keypoints.back(), tmppos);
+				auto tmppos = playerPos - offset;
+				//ã•Ç‚É“–‚½‚Á‚½
+				if (!onTheFrame&&pposy == play_area_top) {
+					//FillConvex€”õ
+					hSegments.push_back(topseg);
+					vSegments.emplace_back(keypoints.back(), tmppos);
+					if (hSegments.back()==topseg && hSegments.front()==bottomseg) {
+						vSegments.push_back(rightseg);//‚Æ‚è‚ ‚¦‚¸‰E‚ğ
 					}
-					else if (keypoints.back().y == tmppos.y) {
-						hSegments.emplace_back(keypoints.back(), tmppos);
+					//—Ìˆæ“h‚è‚Â‚Ô‚µ
+					FillVirtualScreen(area, hSegments, vSegments, onTheFrame, keypoints);
+				}
+				else {
+					if (onTheFrame || lastDirection == Direction::right || lastDirection == Direction::left) {
+
+						if (!keypoints.empty()) {
+							if (keypoints.back().x == tmppos.x) {
+								vSegments.emplace_back(keypoints.back(), tmppos);
+							}
+							else if (keypoints.back().y == tmppos.y) {
+								hSegments.emplace_back(keypoints.back(), tmppos);
+							}
+						}
+						keypoints.push_back(tmppos);
 					}
 				}
-				//tmppos.y -= 1;
-				keypoints.push_back(tmppos);
 			}
 			playerPos.y = pposy;
-			onTheFrame = (playerPos.y == play_areaY);
+			onTheFrame = (playerPos.y == play_area_top);
 			lastDirection = Direction::up;
-		}else if (keystate[KEY_INPUT_DOWN]) {
-
-			auto pposY = min(play_areaY+400,playerPos.y + 2);
-			auto tmppos = playerPos - offset;
 			
-			if (onTheFrame || lastDirection == Direction::right || lastDirection == Direction::left) {
-				
-				if (!keypoints.empty()) {
-					if (keypoints.back().x == tmppos.x) {
-						vSegments.emplace_back(keypoints.back(), tmppos);
+		}
+		else if (keystate[KEY_INPUT_DOWN] && playerPos.y < play_area_bottom) {
+
+			auto pposy = min(play_area_bottom, playerPos.y + 2);
+			auto tmppos = playerPos - offset;
+
+			if (playerPos.x > play_area_left && playerPos.x < play_area_right) {
+				if (playerPos.y == play_area_top) {
+					hSegments.push_back(topseg);
+				}
+				//‰º•Ç‚É“–‚½‚Á‚½
+				if (!onTheFrame&&pposy == play_area_bottom) {
+					//FillConvex€”õ
+					hSegments.push_back(bottomseg);
+					vSegments.emplace_back(keypoints.back(), tmppos);
+					if (hSegments.back() == bottomseg && hSegments.front() == topseg) {
+						vSegments.push_back(leftseg);//‚Æ‚è‚ ‚¦‚¸¶‚ğ
 					}
-					else if (keypoints.back().y == tmppos.y) {
-						hSegments.emplace_back(keypoints.back(), tmppos);
+					//—Ìˆæ“h‚è‚Â‚Ô‚µ
+					FillVirtualScreen(area, hSegments, vSegments, onTheFrame, keypoints);
+				}
+				else {
+
+					if (onTheFrame || lastDirection == Direction::right || lastDirection == Direction::left) {
+
+						if (!keypoints.empty()) {
+							if (keypoints.back().x == tmppos.x) {
+								vSegments.emplace_back(keypoints.back(), tmppos);
+							}
+							else if (keypoints.back().y == tmppos.y) {
+								hSegments.emplace_back(keypoints.back(), tmppos);
+							}
+						}
+						keypoints.push_back(tmppos);
+						onTheFrame = false;
 					}
 				}
-				//tmppos.y += 1;
-				keypoints.push_back(tmppos);
-				onTheFrame = false;
 			}
-			playerPos.y = pposY;
-			onTheFrame = (playerPos.y == play_areaY + 400);
+			playerPos.y = pposy;
+			onTheFrame = (playerPos.y == play_area_bottom);
 
 			lastDirection = Direction::down;
-		}else if (keystate[KEY_INPUT_RIGHT]) {
-			auto pposx = min(play_areaX+450,playerPos.x + 2);
-
-			//‰E•Ç‚É“–‚½‚Á‚½
-			if (!onTheFrame&&pposx == play_areaX + 450) {
-				//FillConvex
-				auto tmppos = playerPos - offset;
-				hSegments.emplace_back(keypoints.back(), tmppos);
-				vSegments.push_back(rightseg);
-				DxLib::SetDrawScreen(area);
-
-				auto lastpos = startPos;
-				unsigned int maxheight=0;
-				
-				FillRange(hSegments, vSegments);
-				onTheFrame = true;
-				keypoints.clear();
-				vSegments.clear();
-				hSegments.clear();
-				firstUp = true;
-				DxLib::SetDrawScreen(DX_SCREEN_BACK);
-
-			}
-			else {
-				auto tmppos = playerPos - offset;
-				if (onTheFrame || lastDirection == Direction::up || lastDirection == Direction::down) {
-					if (!keypoints.empty()) {
-						if (keypoints.back().x == tmppos.x) {
-							vSegments.emplace_back(keypoints.back(), tmppos);
-						}
-						else if (keypoints.back().y == tmppos.y) {
-							hSegments.emplace_back(keypoints.back(), tmppos);
-						}
+		}else if (keystate[KEY_INPUT_RIGHT] && playerPos.x < play_area_right) {
+			auto pposx = min(play_area_right,playerPos.x + 2);
+			auto tmppos = playerPos - offset;
+			if (playerPos.y > play_area_top && playerPos.y < play_area_bottom) {
+				if (playerPos.x == play_area_left) {
+					vSegments.push_back(leftseg);
+				}
+				//‰E•Ç‚É“–‚½‚Á‚½
+				if (!onTheFrame&&pposx == play_area_right) {
+					//FillConvex€”õ
+					vSegments.push_back(rightseg);
+					hSegments.emplace_back(keypoints.back(), tmppos);
+					if (vSegments.back() == rightseg && vSegments.front() == leftseg) {
+						//‚Æ‚è‚ ‚¦‚¸ã
+						hSegments.push_back(topseg);
 					}
-					tmppos.x++;
-					keypoints.push_back(tmppos);
-					onTheFrame = false;
+					//—Ìˆæ“h‚è‚Â‚Ô‚µ
+					FillVirtualScreen(area, hSegments, vSegments, onTheFrame, keypoints);
+				}
+				else {
+					if (onTheFrame || lastDirection == Direction::up || lastDirection == Direction::down) {
+						if (!keypoints.empty()) {
+							if (keypoints.back().x == tmppos.x) {
+								vSegments.emplace_back(keypoints.back(), tmppos);
+							}
+							else if (keypoints.back().y == tmppos.y) {
+								hSegments.emplace_back(keypoints.back(), tmppos);
+							}
+						}
+						tmppos.x++;
+						keypoints.push_back(tmppos);
+						onTheFrame = false;
+					}
 				}
 			}
 			playerPos.x=pposx;
 			lastDirection = Direction::right;
-			onTheFrame=playerPos.x == play_areaX + 450;
-		}else if (keystate[KEY_INPUT_LEFT]) {
-			auto pposX = max(play_areaX , playerPos.x - 2);
+			onTheFrame=playerPos.x == play_area_right;
+		}else if (keystate[KEY_INPUT_LEFT] && playerPos.x > play_area_left) {
+			
+			auto pposx = max(play_area_left , playerPos.x - 2);
 			auto tmppos = playerPos - offset;
-			if (onTheFrame || lastDirection == Direction::up || lastDirection == Direction::down) {
-
-				if (!keypoints.empty()) {
-					if (keypoints.back().x == tmppos.x) {
-						vSegments.emplace_back(keypoints.back(), tmppos);
+			if (playerPos.y > play_area_top && playerPos.y < play_area_bottom) {
+				if (playerPos.x == play_area_right) {
+					vSegments.push_back(rightseg);
+				}
+				//¶•Ç‚É“–‚½‚Á‚½
+				if (!onTheFrame && pposx == play_area_left) {
+					//FillConvex€”õ
+					vSegments.push_back(leftseg);
+					hSegments.emplace_back(keypoints.back(), tmppos);
+					if (vSegments.back() == leftseg && vSegments.front() == rightseg) {
+						//‚Æ‚è‚ ‚¦‚¸‰º
+						hSegments.push_back(bottomseg);
 					}
-					else if (keypoints.back().y == tmppos.y) {
-						hSegments.emplace_back(keypoints.back(), tmppos);
+					//—Ìˆæ“h‚è‚Â‚Ô‚µ
+					FillVirtualScreen(area, hSegments, vSegments, onTheFrame, keypoints);
+				}
+				else {
+
+					if (onTheFrame || lastDirection == Direction::up || lastDirection == Direction::down) {
+
+						if (!keypoints.empty()) {
+							if (keypoints.back().x == tmppos.x) {
+								vSegments.emplace_back(keypoints.back(), tmppos);
+							}
+							else if (keypoints.back().y == tmppos.y) {
+								hSegments.emplace_back(keypoints.back(), tmppos);
+							}
+						}
+						onTheFrame = false;
+						tmppos.x--;
+						keypoints.push_back(tmppos);
 					}
 				}
-				tmppos.x--;
-				keypoints.push_back(tmppos);
 			}
-			playerPos.x = pposX;
+			playerPos.x = pposx;
 			lastDirection = Direction::left;
-			onTheFrame = playerPos.x == play_areaX;
+			onTheFrame = playerPos.x == play_area_left;
 		}
 
 		//˜g•`‰æ
 		DxLib::DrawBox(offset.x-1, offset.y-1, offset.x + 451, offset.y + 401, 0xffffff, false);
-		DxLib::DrawBox(offset.x, offset.y, offset.x + 450, offset.y+400 , 0xffffff, false);
+		DxLib::DrawBox(offset.x, offset.y, offset.x + play_area_width, offset.y+play_area_height, 0xffffff, false);
 		
 
 		DxLib::SetDrawScreen(area);
-		auto tmpPos = playerPos - Vector2(play_areaX, play_areaY);
+		auto tmpPos = playerPos - Vector2(play_area_left, play_area_top);
 		//‹OÕ‰¼•`‰æ
 		DxLib::DrawBox(tmpPos.x - 1, tmpPos.y - 1, tmpPos.x + 1, tmpPos.y + 1, 0xffffff, true);
 
 		/*DrawCircle(playerPos.x- play_areaX, playerPos.y- play_areaY, 1, 0xffffff, true);*/
 		DxLib::SetDrawScreen(DX_SCREEN_BACK);
 		//‹OÕ•`‰æ
-		DxLib::DrawGraph(play_areaX, play_areaY, area, true);
+		DxLib::DrawGraph(play_area_left, play_area_top, area, true);
 		//Šú•`‰æ
 		DxLib::DrawCircle(playerPos.x, playerPos.y, 3, 0xffff88, true);
+
+		DrawDebugStatus(keypoints, hSegments, vSegments);
+		DrawFormatString(512, 300, 0xffffff, "fps=%f", 1000.0f/static_cast<float>(GetTickCount() - count));
+		count = GetTickCount();
+
 		DxLib::ScreenFlip();
 	}
 
 	DxLib_End();
 
 
+}
+
+void DrawDebugStatus(std::list<Position2> &keypoints, std::list<Segment> &hSegments, std::list<Segment> &vSegments)
+{
+	//ƒfƒoƒbƒO•\¦
+	DrawFormatString(512, 50, 0xffffff, "points=%d", keypoints.size());
+	DrawFormatString(512, 150, 0xffffff, "hSegs=%d", hSegments.size());
+	DrawFormatString(512, 250, 0xffffff, "vSegs=%d", vSegments.size());
+}
+
+void FillVirtualScreen(int area, list<Segment> &hSegments, list<Segment> &vSegments, bool &onTheFrame, list<Position2> &keypoints)
+{
+	//‰¼‰æ–Ê‚ğ“h‚è‚Â‚Ô‚·
+	DxLib::SetDrawScreen(area);
+	FillRange(hSegments, vSegments);
+	onTheFrame = true;
+	//Œãˆ—
+	keypoints.clear();
+	vSegments.clear();
+	hSegments.clear();
+	DxLib::SetDrawScreen(DX_SCREEN_BACK);
 }

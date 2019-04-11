@@ -51,12 +51,6 @@ int rewardH;
 ///@param vSegs 垂直辺
 ///@remarks それぞれのセグメントはソート済み(上→下)(左→右)のものとする。
 void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs,bool reverseFlg=false) {
-	//std::sort(hSegs.begin(), hSegs.end(), [](const Segment& lval, const Segment& rval) {
-	//	lval.a.y < rval.a.y;
-	//});
-	//std::sort(vSegs.begin(), vSegs.end(), [](const Segment& lval, const Segment& rval) {
-	//	lval.a.x < rval.a.x;
-	//});
 	hSegs.sort([](const Segment& lval, const Segment& rval)->bool {
 			return lval.a.y < rval.a.y;
 	});
@@ -70,8 +64,6 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs,bool reverse
 	auto top = hSegs.begin()->a.y;
 	auto bottom = hSegs.back().a.y;
 	for (int y = top; y < bottom;++y) {
-		//++hit;
-		//if (hit == hSegs.end())break;
 		std::vector<Segment> xpoints;
 		copy_if(vSegs.begin(), vSegs.end(), back_inserter(xpoints), [y](const Segment& vseg)->bool {
 			return vseg.a.y <= y&&y <= vseg.b.y;
@@ -115,16 +107,38 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs,bool reverse
 				}
 			}
 		}
-		//y = hit->a.y;
 	}
 }
-//sort(hSegs.begin(), hSegs.end(), [](const Segment& lval, const Segment& rval) {
-//	lval.a.y <
-//});
+
 
 void FillVirtualScreen(int area, std::list<Segment> &hSegments, std::list<Segment> &vSegments, bool &onTheFrame, std::list<Position2> &keypoints,bool reverseFlg=false);
 
 void DrawDebugStatus(std::list<Position2> &keypoints, std::list<Segment> &hSegments, std::list<Segment> &vSegments);
+
+
+bool IsIntersected(const Segment& lval, const Segment& rval) {
+	bool lvertical = (lval.a.x == lval.b.x);
+	bool rvertical = (rval.a.x == rval.b.x);
+	if (lvertical == rvertical)return false;//平行なのでクロスしない
+	if (lvertical) {
+		return (rval.a.x <= lval.a.x && lval.a.x <= rval.b.x) && 
+			(lval.a.y <= rval.a.y && rval.a.y <= lval.b.y);
+	}
+	else {
+		return (lval.a.x <= rval.a.x && rval.a.x <= lval.b.x) &&
+			(rval.a.y <= lval.a.y && lval.a.y <= rval.b.y);
+	}
+}
+
+bool IsIntersected(const Segment& seg, const std::list<Segment>& segments,Segment* exclusiveSeg=nullptr) {
+	for (auto& s : segments) {
+		if (exclusiveSeg!=nullptr && s == *exclusiveSeg)continue;
+		if (IsIntersected(seg, s)) {
+			return true;
+		}
+	}
+	return false;
+}
 
 int main() {
 	ChangeWindowMode(true);
@@ -186,18 +200,26 @@ int main() {
 	bool onTheFrame = true;//外枠の上にいるか？
 
 	auto count = GetTickCount();
+
+	Segment* baseSegment=nullptr;//出発地点のセグメント
 	while (!ProcessMessage()) {
 		
 		ClearDrawScreen();
 		DxLib::GetHitKeyStateAll(keystate);
-		if (keystate[KEY_INPUT_UP]&&playerPos.y > play_area_top) {
+		if (keystate[KEY_INPUT_UP]&&playerPos.y > play_area_top ) {
 			auto pposy = max(play_area_top,playerPos.y -2);
+			auto tmppos = playerPos - offset;
+			auto tmpy = pposy - play_area_top;
+			if (IsIntersected(Segment(tmppos, Position2(tmppos.x, tmpy)),hSegments, baseSegment)) {
+				pposy = playerPos.y;
+			}
 			if (playerPos.x > play_area_left && playerPos.x < play_area_right) {
 				if (playerPos.y == play_area_bottom) {
 					hSegments.push_back(bottomseg);
+					baseSegment = &bottomseg;
 				}
 
-				auto tmppos = playerPos - offset;
+				
 				//上壁に当たった時
 				if (!onTheFrame&&pposy == play_area_top) {
 					//FillConvex準備
@@ -233,10 +255,14 @@ int main() {
 
 			auto pposy = min(play_area_bottom, playerPos.y + 2);
 			auto tmppos = playerPos - offset;
-
+			auto tmpy = pposy - play_area_top;
+			if (IsIntersected(Segment(tmppos, Position2(tmppos.x, tmpy)), hSegments, baseSegment)) {
+				pposy = playerPos.y;
+			}
 			if (playerPos.x > play_area_left && playerPos.x < play_area_right) {
 				if (playerPos.y == play_area_top) {
 					hSegments.push_back(topseg);
+					baseSegment = &topseg;
 				}
 				//下壁に当たった時
 				if (!onTheFrame&&pposy == play_area_bottom) {
@@ -248,6 +274,7 @@ int main() {
 					}
 					//領域塗りつぶし
 					FillVirtualScreen(area, hSegments, vSegments, onTheFrame, keypoints);
+					baseSegment = nullptr;
 				}
 				else {
 
@@ -273,9 +300,14 @@ int main() {
 		}else if (keystate[KEY_INPUT_RIGHT] && playerPos.x < play_area_right) {
 			auto pposx = min(play_area_right,playerPos.x + 2);
 			auto tmppos = playerPos - offset;
+			auto tmpx = pposx - play_area_left;
+			if (IsIntersected(Segment(tmppos, Position2(tmpx,tmppos.y)), vSegments, baseSegment)) {
+				pposx = playerPos.x;
+			}
 			if (playerPos.y > play_area_top && playerPos.y < play_area_bottom) {
 				if (playerPos.x == play_area_left) {
 					vSegments.push_back(leftseg);
+					baseSegment = &leftseg;
 				}
 				//右壁に当たった時
 				if (!onTheFrame&&pposx == play_area_right) {
@@ -288,6 +320,7 @@ int main() {
 					}
 					//領域塗りつぶし
 					FillVirtualScreen(area, hSegments, vSegments, onTheFrame, keypoints);
+					baseSegment = nullptr;
 				}
 				else {
 					if (onTheFrame || lastDirection == Direction::up || lastDirection == Direction::down) {
@@ -312,9 +345,14 @@ int main() {
 			
 			auto pposx = max(play_area_left , playerPos.x - 2);
 			auto tmppos = playerPos - offset;
+			auto tmpx = pposx - play_area_left;
+			if (IsIntersected(Segment(tmppos, Position2(tmpx, tmppos.y)), vSegments, baseSegment)) {
+				pposx = playerPos.x;
+			}
 			if (playerPos.y > play_area_top && playerPos.y < play_area_bottom) {
 				if (playerPos.x == play_area_right) {
 					vSegments.push_back(rightseg);
+					baseSegment = &rightseg;
 				}
 				//左壁に当たった時
 				if (!onTheFrame && pposx == play_area_left) {
@@ -331,6 +369,7 @@ int main() {
 					}
 					//領域塗りつぶし
 					FillVirtualScreen(area, hSegments, vSegments, onTheFrame, keypoints,true);
+					baseSegment = nullptr;
 				}
 				else {
 

@@ -50,7 +50,7 @@ int rewardH;
 ///@param hSegs 水平辺
 ///@param vSegs 垂直辺
 ///@remarks それぞれのセグメントはソート済み(上→下)(左→右)のものとする。
-void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs) {
+void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs,bool reverseFlg=false) {
 	//std::sort(hSegs.begin(), hSegs.end(), [](const Segment& lval, const Segment& rval) {
 	//	lval.a.y < rval.a.y;
 	//});
@@ -63,6 +63,9 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs) {
 	vSegs.sort([](const Segment& lval, const Segment& rval)->bool {
 			return lval.a.x < rval.a.x;
 	});
+	if (reverseFlg) {
+		vSegs.reverse();
+	}
 	auto hit = hSegs.begin();
 	auto top = hSegs.begin()->a.y;
 	auto bottom = hSegs.back().a.y;
@@ -81,23 +84,35 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs) {
 				(y == xpoints[i].b.y &&
 					y == xpoints[i + 1].a.y)) {
 				DrawBox(xpoints[i].a.x, y, xpoints[i+2].a.x, y + 1, 0xffaaaa, true);
-				DxLib::DrawRectGraph(xpoints[i].a.x, y, xpoints[i].a.x, y, abs(xpoints[i + 2].a.x - xpoints[i].a.x), 1, rewardH,false);
-				//DrawCircle(xpoints[i * 2 + 2].a.x, y, 3, 0xaaaaff);
+				if (reverseFlg) {
+					DxLib::DrawRectGraph(xpoints[i+2].a.x, y, xpoints[i+2].a.x, y, abs(xpoints[i+2].a.x - xpoints[i].a.x), 1, rewardH, false);
+				}
+				else {
+					DxLib::DrawRectGraph(xpoints[i].a.x, y, xpoints[i].a.x, y, abs(xpoints[i + 2].a.x - xpoints[i].a.x), 1, rewardH, false);
+				}
 				++i;//消費しました
 			}
 			else if ((i + 2) < drawcount&&
 				((y == xpoints[i + 1].a.y &&
 				y == xpoints[i + 2].b.y) || (y == xpoints[i + 1].b.y &&
 					y == xpoints[i + 2].a.y))) {
-				DrawBox(xpoints[i].a.x, y, xpoints[i + 2].a.x, y + 1, 0xffaaaa, true);
+				if (reverseFlg) {
+					DrawBox(xpoints[i].a.x, y, xpoints[i + 2].a.x, y + 1, 0xffaaaa, true);
+				}
+				else {
+					DrawBox(xpoints[i+2].a.x, y, xpoints[i].a.x, y + 1, 0xffaaaa, true);
+				}
 				DxLib::DrawRectGraph(xpoints[i].a.x, y, xpoints[i].a.x, y, abs(xpoints[i + 2].a.x - xpoints[i].a.x), 1, rewardH, false);
-				++i;
-				//i += 2;//消費しました
+				++i;//消費しました
 			}
 			else {
 				DrawBox(xpoints[i].a.x, y, xpoints[i+1].a.x, y + 1, 0xffaaaa, true);
-				DxLib::DrawRectGraph(xpoints[i].a.x, y, xpoints[i].a.x, y, abs(xpoints[i + 1].a.x - xpoints[i].a.x), 1, rewardH, false);
-
+				if (reverseFlg) {
+					DxLib::DrawRectGraph(xpoints[i+1].a.x, y, xpoints[i+1].a.x, y, abs(xpoints[i + 1].a.x - xpoints[i].a.x), 1, rewardH, false);
+				}
+				else {
+					DxLib::DrawRectGraph(xpoints[i].a.x, y, xpoints[i].a.x, y, abs(xpoints[i + 1].a.x - xpoints[i].a.x), 1, rewardH, false);
+				}
 			}
 		}
 		//y = hit->a.y;
@@ -107,7 +122,7 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs) {
 //	lval.a.y <
 //});
 
-void FillVirtualScreen(int area, std::list<Segment> &hSegments, std::list<Segment> &vSegments, bool &onTheFrame, std::list<Position2> &keypoints);
+void FillVirtualScreen(int area, std::list<Segment> &hSegments, std::list<Segment> &vSegments, bool &onTheFrame, std::list<Position2> &keypoints,bool reverseFlg=false);
 
 void DrawDebugStatus(std::list<Position2> &keypoints, std::list<Segment> &hSegments, std::list<Segment> &vSegments);
 
@@ -304,14 +319,18 @@ int main() {
 				//左壁に当たった時
 				if (!onTheFrame && pposx == play_area_left) {
 					//FillConvex準備
-					vSegments.push_back(leftseg);
+					if (vSegments.front() == leftseg) {
+					}
+					else {
+						vSegments.push_back(leftseg);
+					}
 					hSegments.emplace_back(keypoints.back(), tmppos);
 					if (vSegments.back() == leftseg && vSegments.front() == rightseg) {
 						//とりあえず下
 						hSegments.push_back(bottomseg);
 					}
 					//領域塗りつぶし
-					FillVirtualScreen(area, hSegments, vSegments, onTheFrame, keypoints);
+					FillVirtualScreen(area, hSegments, vSegments, onTheFrame, keypoints,true);
 				}
 				else {
 
@@ -373,11 +392,11 @@ void DrawDebugStatus(std::list<Position2> &keypoints, std::list<Segment> &hSegme
 	DrawFormatString(512, 250, 0xffffff, "vSegs=%d", vSegments.size());
 }
 
-void FillVirtualScreen(int area, list<Segment> &hSegments, list<Segment> &vSegments, bool &onTheFrame, list<Position2> &keypoints)
+void FillVirtualScreen(int area, list<Segment> &hSegments, list<Segment> &vSegments, bool &onTheFrame, list<Position2> &keypoints, bool reverseFlg )
 {
 	//仮画面を塗りつぶす
 	DxLib::SetDrawScreen(area);
-	FillRange(hSegments, vSegments);
+	FillRange(hSegments, vSegments,reverseFlg);
 	onTheFrame = true;
 	//後処理
 	keypoints.clear();

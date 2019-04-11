@@ -67,9 +67,26 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs) {
 		copy_if(vSegs.begin(), vSegs.end(), back_inserter(xpoints), [y](const Segment& vseg)->bool {
 			return vseg.a.y <= y&&y <= vseg.b.y;
 		});
-		auto drawcount= xpoints.size()/2;
-		for (int i = 0; i < drawcount; ++i) {
-			DrawBox(xpoints[i*2].a.x,y, xpoints[i * 2+1].a.x,y+1,0xffaaaa,true);
+		auto drawcount= xpoints.size();
+		for (int i = 0; i < drawcount-1; i+=2) {
+			if (y == xpoints[i].a.y && 
+				y == xpoints[i + 1].b.y &&
+				(i + 2) < xpoints.size()) {
+				DrawBox(xpoints[i].a.x, y, xpoints[i+2].a.x, y + 1, 0xffaaaa, true);
+				//DrawCircle(xpoints[i * 2 + 2].a.x, y, 3, 0xaaaaff);
+				++i;//Á”ï‚µ‚Ü‚µ‚½
+			}
+			else if ((i + 2) < xpoints.size()&&
+				((y == xpoints[i + 1].a.y &&
+				y == xpoints[i + 2].b.y) || (y == xpoints[i + 1].b.y &&
+					y == xpoints[i + 2].a.y))) {
+				DrawBox(xpoints[i].a.x, y, xpoints[i + 2].a.x, y + 1, 0xffaaaa, true);
+				++i;
+				//i += 2;//Á”ï‚µ‚Ü‚µ‚½
+			}
+			else {
+				DrawBox(xpoints[i].a.x, y, xpoints[i+1].a.x, y + 1, 0xffaaaa, true);
+			}
 		}
 		//y = hit->a.y;
 	}
@@ -157,7 +174,7 @@ int main() {
 						hSegments.emplace_back(keypoints.back(), tmppos);
 					}
 				}
-				tmppos.y -= 1;
+				//tmppos.y -= 1;
 				keypoints.push_back(tmppos);
 			}
 			playerPos.y = pposy;
@@ -178,7 +195,7 @@ int main() {
 						hSegments.emplace_back(keypoints.back(), tmppos);
 					}
 				}
-				tmppos.y += 1;
+				//tmppos.y += 1;
 				keypoints.push_back(tmppos);
 				onTheFrame = false;
 			}
@@ -220,7 +237,7 @@ int main() {
 							hSegments.emplace_back(keypoints.back(), tmppos);
 						}
 					}
-					
+					tmppos.x++;
 					keypoints.push_back(tmppos);
 					onTheFrame = false;
 				}
@@ -241,7 +258,7 @@ int main() {
 						hSegments.emplace_back(keypoints.back(), tmppos);
 					}
 				}
-
+				tmppos.x--;
 				keypoints.push_back(tmppos);
 			}
 			playerPos.x = pposX;

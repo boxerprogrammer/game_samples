@@ -85,9 +85,6 @@ int main() {
 	DxLib_Init();
 	DxLib::SetDrawScreen(DX_SCREEN_BACK);
 
-	
-
-
 	DrawString(100, 100, "Hello World", 0xffffff); 
 	Position2 playerPos(550 / 2,450);//
 	auto offset=Vector2(play_areaX, play_areaY);
@@ -132,11 +129,7 @@ int main() {
 	Segment leftseg(0, 0, 0, 400);
 	Segment rightseg(450, 0, 450, 400);
 
-	//hSegments.emplace_back(0, 0, 450, 0);//ã
-	//hSegments.emplace_back(0, 400, 450, 400);//‰º
 
-	//vSegments.emplace_back(0, 0, 0, 400);//¶
-	//vSegments.emplace_back(450, 0, 450, 400);//‰E
 
 
 	bool onTheFrame = true;//ŠO˜g‚Ìã‚É‚¢‚é‚©H
@@ -206,40 +199,7 @@ int main() {
 
 				auto lastpos = startPos;
 				unsigned int maxheight=0;
-				//for (auto& pos : keypoints) {
-				//	if (lastpos.y != pos.y) {
-				//		if (maxheight > abs(pos.y - startPos.y)) {
-				//			DxLib::DrawBox(pos.x - 1, pos.y - 1, pos.x + 1, startPos.y + 1, 0xaaffaa, true);
-				//			continue;
-				//		}
-				//		maxheight = abs(pos.y - startPos.y);
-				//	}
-				//	DxLib::DrawBox(pos.x - 1, pos.y - 1, tmppos.x + 1, lastpos.y + 1, 0xaaffaa, true);
-				//	lastpos = pos;
-				//}
-				//auto hSegit = hSegments.rbegin();
-				//for (; hSegit != hSegments.rend();++hSegit) {
-				//	if (*hSegit == topseg || *hSegit == bottomseg)continue;
-				//	int y = hSegit->a.y;
-				//	auto it = find_if(hSegit, hSegments.rend(), [y](const Segment& seg)->bool {
-				//		return y < seg.a.y;//Ž©•ª‚æ‚è’á‚¢ˆÊ’u‚É‚ ‚éü•ª‚ð’T‚·
-				//	});
-				//	if (it != hSegments.rend()) {
-				//		int right = SearchMinRight(*hSegit, vSegments);
-				//		if (hSegit->a.x == it->a.x || hSegit->a.x == it->b.x) {
-				//			DxLib::DrawBox(hSegit->a.x, hSegit->a.y - 1, right + 1, it->b.y + 1, 0xaaffaa, true);
-				//		}
-				//		else if((hSegit->b.x == it->a.x || hSegit->b.x == it->b.x)){
-				//			DxLib::DrawBox(hSegit->b.x, hSegit->a.y - 1, right + 1, it->b.y + 1, 0xaaffaa, true);
-				//		}
-				//		else {
-				//			DxLib::DrawBox(hSegit->a.x, hSegit->a.y - 1, right + 1, it->b.y + 1, 0xaaffaa, true);
-				//		}
-				//	}
-				//	else {
-				//		assert(0);
-				//	}
-				//}
+				
 				FillRange(hSegments, vSegments);
 				onTheFrame = true;
 				keypoints.clear();

@@ -31,6 +31,14 @@ struct Segment {
 	Position2 b;//ïKÇ∏âEÇ©â∫
 	Direction inner;//ÉZÉOÉÅÉìÉgÇÃì‡ë§ï˚å¸
 	//Segment* lastSeg = nullptr;
+	Segment(const Segment& seg, Direction dir = Direction::none) :a(seg.a), b(seg.b), inner(dir) {
+		if (b.x < a.x) {
+			swap(a, b);
+		}
+		else if (b.y < a.y) {
+			swap(a, b);
+		}
+	}
 	Segment(const Position2& lval, const Position2& rval,Direction dir=Direction::none) :a(lval), b(rval),inner(dir) {
 		if (rval.x < lval.x) {
 			a = rval;
@@ -61,27 +69,48 @@ std::list<Segment> _vFixedSegs;
 
 void RegisterFixedSegment(int y, std::vector<Segment> &xpoints, int i, bool reverseFlg)
 {
-	if (y == xpoints[i].b.y || y == xpoints[i + 1].b.y) {
-		_hFixedSegs.emplace_back(Position2(xpoints[i].b.x, y), Position2(xpoints[i + 1].b.x, y), Direction::down);
-	}
+	//if (y == xpoints[i].b.y || y == xpoints[i + 1].b.y) {
+	//	_hFixedSegs.emplace_back(Position2(xpoints[i].b.x, y), Position2(xpoints[i + 1].b.x, y), Direction::down);
+	//}
 	//ämíËï”Çìoò^
-	if (y == xpoints[i].a.y || y == xpoints[i + 1].a.y) {
-		_hFixedSegs.emplace_back(Position2(xpoints[i].a.x, y), Position2(xpoints[i + 1].a.x, y), Direction::up);
+	if ((y == xpoints[i].a.y && y == xpoints[i + 1].a.y) || (y == xpoints[i].b.y && y == xpoints[i + 1].b.y ) ||//|ÅQ|Ç©|ÅP|Ç©
+		(y == xpoints[i].a.y && (xpoints[i + 1].a.y < y&&y < xpoints[i + 1].b.y)) ||//|ÅPï«Ç©
+		(y == xpoints[i + 1].a.y && (xpoints[i].a.y < y&&y < xpoints[i].b.y)) || //ï«ÅP|Ç©
+		(y == xpoints[i].b.y && (xpoints[i + 1].a.y < y&&y < xpoints[i + 1].b.y)) || //|_ï«Ç©
+		(y == xpoints[i + 1].b.y && (xpoints[i].a.y < y&&y < xpoints[i].b.y))) {//ï«_|
+		
+		Direction updown = Direction::up;
+
+		if ((y == xpoints[i].b.y && y == xpoints[i + 1].b.y)|| //|ÅQ|
+			(y == xpoints[i].b.y && (xpoints[i + 1].a.y<y&&y< xpoints[i + 1].b.y))||//|_ï«
+			(y == xpoints[i+1].b.y && (xpoints[i].a.y < y&&y < xpoints[i].b.y))) {//ï«_|
+			updown = Direction::down;
+			_hFixedSegs.emplace_back(Position2(xpoints[i].b.x, y), Position2(xpoints[i + 1].b.x, y), Direction::down);
+		}
+		else {
+			_hFixedSegs.emplace_back(Position2(xpoints[i].a.x, y), Position2(xpoints[i + 1].a.x, y), Direction::up);
+		}
+		
+
 		Direction d1 = Direction::left, d2 = Direction::right;
 		if (reverseFlg) {
 			swap(d1, d2);
 		}
-		if (xpoints[i].a.y < y) {
-			_vFixedSegs.emplace_back(Position2(xpoints[i].a.x, y), Position2(xpoints[i].a.x, xpoints[i].b.y), d1);
+		if ((y== xpoints[i].a.y && y== xpoints[i+1].a.y) || (y == xpoints[i].b.y && y == xpoints[i + 1].b.y)) {//|ÅP|Ç©|_|
+			_vFixedSegs.emplace_back(xpoints[i], d1);
+			_vFixedSegs.emplace_back(xpoints[i+1], d2);
 		}
-		else {
-			_vFixedSegs.emplace_back(xpoints[i].a, xpoints[i].b, d1);
+		else if(y == xpoints[i].a.y){//|ÅPï«
+			_vFixedSegs.emplace_back(xpoints[i], d1);
 		}
-		if (xpoints[i + 1].a.y < y) {
-			_vFixedSegs.emplace_back(Position2(xpoints[i + 1].a.x, y), Position2(xpoints[i + 1].a.x, xpoints[i + 1].b.y), d2);
+		else if (y == xpoints[i + 1].a.y) {//ï«ÅP|
+			_vFixedSegs.emplace_back(xpoints[i+1], d2);
 		}
-		else {
-			_vFixedSegs.emplace_back(xpoints[i + 1].a, xpoints[i + 1].b, d2);
+		else if (y == xpoints[i].b.y) {//|_ï«
+			_vFixedSegs.emplace_back(xpoints[i], d1);
+		}
+		else if (y == xpoints[i + 1].b.y) {//ï«_|
+			_vFixedSegs.emplace_back(xpoints[i+1], d2);
 		}
 	}
 }
@@ -159,10 +188,30 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs,bool reverse
 					y == xpoints[i + 2].a.y))) {
 				
 				//ämíËï”Çìoò^
-				if (y==xpoints[i+1].a.y||y==xpoints[i + 2].a.y) {
-					_hFixedSegs.emplace_back(xpoints[i+1].a, xpoints[i + 2].a, Direction::up);
-					_vFixedSegs.emplace_back(xpoints[i+1].a, xpoints[i+1].b, Direction::left);
-					_vFixedSegs.emplace_back(xpoints[i + 2].a, xpoints[i + 2].b, Direction::right);
+				//if (y==xpoints[i+1].a.y||y==xpoints[i + 2].a.y) {
+				//	_hFixedSegs.emplace_back(xpoints[i+1].a, xpoints[i + 2].a, Direction::up);
+				//	_vFixedSegs.emplace_back(xpoints[i+1].a, xpoints[i+1].b, Direction::left);
+				//	_vFixedSegs.emplace_back(xpoints[i + 2].a, xpoints[i + 2].b, Direction::right);
+				//}
+
+				//ämíËï”Çìoò^
+				if ((y == xpoints[i+1].a.y&&y == xpoints[i + 2].b.y) || (y == xpoints[i+1].b.y&&y == xpoints[i + 2].a.y)) {
+					Direction d1 = Direction::left, d2 = Direction::right;
+					if (reverseFlg) {
+						swap(d1, d2);
+					}
+					//   |
+					// |ÅP
+					if (y == xpoints[i+1].a.y && y == xpoints[i + 2].b.y) {
+						_hFixedSegs.emplace_back(Position2(xpoints[i+1].b.x, y), Position2(xpoints[i + 2].b.x, y), Direction::down);
+						_vFixedSegs.emplace_back(xpoints[i+1].a, xpoints[i+1].b, d2);
+					}
+					//|  
+					// ÅP|
+					else if (y == xpoints[i+1].b.y && y == xpoints[i + 2].a.y) {
+						_hFixedSegs.emplace_back(xpoints[i+1].b, xpoints[i + 2].a, Direction::up);
+						_vFixedSegs.emplace_back(xpoints[i+1].a, xpoints[i+1].b, d2);
+					}
 				}
 
 				if (reverseFlg) {
@@ -350,7 +399,7 @@ int main() {
 				if (!onTheFrame&&pposy == play_area_bottom) {
 					//FillConvexèÄîı
 					hSegments.push_back(bottomseg);
-					vSegments.emplace_back(keypoints.back(), tmppos);
+					vSegments.emplace_back(keypoints.back(), Position2(tmppos.x,tmpy));
 					if (hSegments.back() == bottomseg && hSegments.front() == topseg) {
 						vSegments.push_back(leftseg);//Ç∆ÇËÇ†Ç¶Ç∏ç∂Ç
 					}

@@ -99,12 +99,15 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs,bool reverse
 				y == xpoints[i + 2].b.y) || (y == xpoints[i + 1].b.y &&
 					y == xpoints[i + 2].a.y))) {
 				if (reverseFlg) {
-					DrawBox(xpoints[i].a.x, y, xpoints[i + 2].a.x, y + 1, 0xffaaaa, true);
+					DrawBox(xpoints[i + 2].a.x, y, xpoints[i].a.x, y + 1, 0xffaaaa, true);
+					DxLib::DrawRectGraph(xpoints[i + 2].a.x, y, xpoints[i + 2].a.x, y, abs(xpoints[i + 2].a.x - xpoints[i].a.x), 1, rewardH, false);
+					
 				}
 				else {
-					DrawBox(xpoints[i+2].a.x, y, xpoints[i].a.x, y + 1, 0xffaaaa, true);
+					DrawBox(xpoints[i].a.x, y, xpoints[i + 2].a.x, y + 1, 0xffaaaa, true);
+					DxLib::DrawRectGraph(xpoints[i].a.x, y, xpoints[i].a.x, y, abs(xpoints[i + 2].a.x - xpoints[i].a.x), 1, rewardH, false);
 				}
-				DxLib::DrawRectGraph(xpoints[i].a.x, y, xpoints[i].a.x, y, abs(xpoints[i + 2].a.x - xpoints[i].a.x), 1, rewardH, false);
+				
 				++i;//è¡îÔÇµÇ‹ÇµÇΩ
 			}
 			else {

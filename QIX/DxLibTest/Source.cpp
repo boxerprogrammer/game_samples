@@ -18,11 +18,11 @@ constexpr unsigned int play_area_height = play_area_bottom - play_area_top;
 using namespace std;
 
 enum class Direction{
-	none,
-	up,
-	down,
-	left,
-	right
+	none,//方向未定
+	up,//上
+	down,//下
+	left,//左
+	right//右
 };
 
 //縦と横しかない線分情報
@@ -31,7 +31,7 @@ struct Segment {
 	Position2 b;//必ず右か下
 	Direction inner;//セグメントの内側方向
 	//Segment* lastSeg = nullptr;
-	Segment(const Position2& lval, const Position2& rval) :a(lval), b(rval) {
+	Segment(const Position2& lval, const Position2& rval,Direction dir=Direction::none) :a(lval), b(rval),inner(dir) {
 		if (rval.x < lval.x) {
 			a = rval;
 			b = lval;
@@ -41,7 +41,7 @@ struct Segment {
 			b = lval;
 		}
 	}
-	Segment(int x1,int y1,int x2, int y2) : a(x1,y1),b(x2,y2){
+	Segment(int x1,int y1,int x2, int y2, Direction dir = Direction::none) : a(x1,y1),b(x2,y2),inner(dir){
 		if (x1> x2) {
 			swap(a, b);
 		}
@@ -55,6 +55,9 @@ bool operator==(const Segment& lval,const Segment& rval) {
 	return lval.a == rval.a && lval.b == rval.b;
 }
 int rewardH;
+
+std::list<Segment> _hFixedSegs;
+std::list<Segment> _vFixedSegs;
 
 ///塗りつぶし範囲を返す
 ///@param hSegs 水平辺
@@ -73,13 +76,17 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs,bool reverse
 	auto hit = hSegs.begin();
 	auto top = hSegs.begin()->a.y;
 	auto bottom = hSegs.back().a.y;
-	for (int y = top; y < bottom;++y) {
+	for (int y = top; y <= bottom;++y) {
 		std::vector<Segment> xpoints;
 		copy_if(vSegs.begin(), vSegs.end(), back_inserter(xpoints), [y](const Segment& vseg)->bool {
 			return vseg.a.y <= y&&y <= vseg.b.y;
 		});
 		auto drawcount= xpoints.size();
 		for (int i = 0; i < drawcount-1; i+=2) {
+			//上辺もしくは下辺であり、その向こうにも交差点がある場合(向こうの交差点までを塗りつぶす)
+			// ＿|       |ここまで塗りつぶし対象
+			//|　        |
+			//↑こういう場合
 			if ((i + 2) < drawcount&&
 				(y == xpoints[i].a.y &&
 				y == xpoints[i + 1].b.y ) || 
@@ -92,12 +99,24 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs,bool reverse
 				else {
 					DxLib::DrawRectGraph(xpoints[i].a.x, y, xpoints[i].a.x, y, abs(xpoints[i + 2].a.x - xpoints[i].a.x), 1, rewardH, false);
 				}
-				++i;//消費しました
+				++i;//消費しました(そのむこうまで塗りつぶしているのでカウントを進める)
 			}
+			//上のやつと逆パターン(ソートしてるから逆の場合左二つで終わってしまう…)
+			//|       |＿　
+			//|　        |
+			//↑こういう場合
 			else if ((i + 2) < drawcount&&
 				((y == xpoints[i + 1].a.y &&
 				y == xpoints[i + 2].b.y) || (y == xpoints[i + 1].b.y &&
 					y == xpoints[i + 2].a.y))) {
+				
+				//確定辺を登録
+				if (y==xpoints[i+1].a.y&&y==xpoints[i + 2].a.y) {
+					_hFixedSegs.emplace_back(xpoints[i+1].a, xpoints[i + 2].a, Direction::up);
+					_vFixedSegs.emplace_back(xpoints[i+1].a, xpoints[i+1].b, Direction::left);
+					_vFixedSegs.emplace_back(xpoints[i + 2].a, xpoints[i + 2].b, Direction::right);
+				}
+
 				if (reverseFlg) {
 					DrawBox(xpoints[i + 2].a.x, y, xpoints[i].a.x, y + 1, 0xffaaaa, true);
 					DxLib::DrawRectGraph(xpoints[i + 2].a.x, y, xpoints[i + 2].a.x, y, abs(xpoints[i + 2].a.x - xpoints[i].a.x), 1, rewardH, false);
@@ -107,10 +126,32 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs,bool reverse
 					DrawBox(xpoints[i].a.x, y, xpoints[i + 2].a.x, y + 1, 0xffaaaa, true);
 					DxLib::DrawRectGraph(xpoints[i].a.x, y, xpoints[i].a.x, y, abs(xpoints[i + 2].a.x - xpoints[i].a.x), 1, rewardH, false);
 				}
-				
-				++i;//消費しました
+				++i;//消費しました(そのむこうまで塗りつぶしているのでカウントを進める)
 			}
-			else {
+			else {//通常塗り
+				if (y == xpoints[i].b.y || y == xpoints[i + 1].b.y) {
+					_hFixedSegs.emplace_back(Position2(xpoints[i].b.x, y), Position2(xpoints[i + 1].b.x, y), Direction::down);
+				}
+				//確定辺を登録
+				if (y==xpoints[i].a.y || y==xpoints[i + 1].a.y) {
+					_hFixedSegs.emplace_back(Position2(xpoints[i].a.x,y), Position2(xpoints[i+1].a.x, y), Direction::up);
+					Direction d1 = Direction::left, d2 = Direction::right;
+					if (reverseFlg) {
+						swap(d1, d2);
+					}
+					if (xpoints[i].a.y < y) {
+						_vFixedSegs.emplace_back(Position2(xpoints[i].a.x, y), Position2(xpoints[i].a.x, xpoints[i].b.y), d1);
+					}
+					else {
+						_vFixedSegs.emplace_back(xpoints[i].a,xpoints[i].b, d1);
+					}
+					if (xpoints[i + 1].a.y < y) {
+						_vFixedSegs.emplace_back(Position2(xpoints[i+1].a.x, y), Position2(xpoints[i + 1].a.x, xpoints[i + 1].b.y), d2);
+					}
+					else {
+						_vFixedSegs.emplace_back(xpoints[i+1].a,xpoints[i+1].b, d2);
+					}
+				}
 				DrawBox(xpoints[i].a.x, y, xpoints[i+1].a.x, y + 1, 0xffaaaa, true);
 				if (reverseFlg) {
 					DxLib::DrawRectGraph(xpoints[i+1].a.x, y, xpoints[i+1].a.x, y, abs(xpoints[i + 1].a.x - xpoints[i].a.x), 1, rewardH, false);
@@ -213,6 +254,9 @@ int main() {
 	auto count = GetTickCount();
 
 	Segment* baseSegment=nullptr;//出発地点のセグメント
+
+	int frame = 30;
+
 	while (!ProcessMessage()) {
 		
 		ClearDrawScreen();
@@ -417,13 +461,54 @@ int main() {
 
 		/*DrawCircle(playerPos.x- play_areaX, playerPos.y- play_areaY, 1, 0xffffff, true);*/
 		DxLib::SetDrawScreen(DX_SCREEN_BACK);
+		
 		//軌跡描画
 		DxLib::DrawGraph(play_area_left, play_area_top, area, true);
-		//時期描画
-		DxLib::DrawCircle(playerPos.x, playerPos.y, 3, 0xffff88, true);
+		
+		//自機描画
+		DxLib::DrawCircle(playerPos.x, playerPos.y, 3+3.0*float(abs(frame-30)/60.0f), 0xffff88, true);
+		frame = (frame + 1) % 60;
+		//デバッグ用
+		//確定線描画
+		for (auto& s : _hFixedSegs) {
+			DrawLine(s.a.x+play_area_left, 
+				s.a.y+ play_area_top, 
+				s.b.x+play_area_left, 
+				s.b.y+ play_area_top, 0xaaffaa, 1);
+			DrawLine(s.a.x + play_area_left, 
+				s.a.y + play_area_top+1,
+				s.b.x + play_area_left,
+				s.b.y + play_area_top+1, 0xff0000, 1);
+
+			//方向
+			auto m = (s.a.x + s.b.x) / 2 + play_area_left;
+			auto y1 = s.a.y + play_area_top;
+			auto y2 = s.a.y + play_area_top+(s.inner==Direction::up?-10:10);
+			DrawLine(m, y1,
+				m,
+				y2, 0xff0000, 1);
+		}
+		for (auto& s : _vFixedSegs) {
+			DrawLine(s.a.x + play_area_left, 
+				s.a.y + play_area_top,
+				s.b.x + play_area_left,
+				s.b.y + play_area_top, 0xaaffaa, 1);
+			DrawLine(s.a.x + play_area_left, 
+				s.a.y + play_area_top,
+				s.b.x + play_area_left + (s.inner == Direction::left ? 1 : -1),
+				s.b.y + play_area_top , 0xff0000, 1);
+
+			//方向
+			auto m = (s.a.y + s.b.y) / 2 + play_area_top;
+			auto x1 = s.a.x + play_area_left;
+			auto x2 = s.a.x + play_area_left + (s.inner == Direction::left ? -10 : 10);
+			DrawLine(x1, m,
+				x2,
+				m, 0xff0000, 1);
+		}
 
 		DrawDebugStatus(keypoints, hSegments, vSegments);
-		DrawFormatString(512, 300, 0xffffff, "fps=%f", 1000.0f/static_cast<float>(GetTickCount() - count));
+		DrawFormatString(512, 350, 0xffffff, "fps=%f", 1000.0f/static_cast<float>(GetTickCount() - count));
 		count = GetTickCount();
 
 		DxLib::ScreenFlip();
@@ -437,9 +522,13 @@ int main() {
 void DrawDebugStatus(std::list<Position2> &keypoints, std::list<Segment> &hSegments, std::list<Segment> &vSegments)
 {
 	//デバッグ表示
-	DrawFormatString(512, 50, 0xffffff, "points=%d", keypoints.size());
-	DrawFormatString(512, 150, 0xffffff, "hSegs=%d", hSegments.size());
-	DrawFormatString(512, 250, 0xffffff, "vSegs=%d", vSegments.size());
+	DrawFormatString(512, 50, 0xffffff, "点の数=%d", keypoints.size());
+	DrawFormatString(512, 100, 0xffffff, "未確定横辺=%d", hSegments.size());
+	DrawFormatString(512, 150, 0xffffff, "未確定縦辺=%d", vSegments.size());
+
+	DrawFormatString(512, 200, 0xffffff, "確定横辺=%d", _hFixedSegs.size());
+	DrawFormatString(512, 250, 0xffffff, "確定縦辺=%d", _vFixedSegs.size());
+
 }
 
 void FillVirtualScreen(int area, list<Segment> &hSegments, list<Segment> &vSegments, bool &onTheFrame, list<Position2> &keypoints, bool reverseFlg )

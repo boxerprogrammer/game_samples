@@ -59,6 +59,33 @@ int rewardH;
 std::list<Segment> _hFixedSegs;
 std::list<Segment> _vFixedSegs;
 
+void RegisterFixedSegment(int y, std::vector<Segment> &xpoints, int i, bool reverseFlg)
+{
+	if (y == xpoints[i].b.y || y == xpoints[i + 1].b.y) {
+		_hFixedSegs.emplace_back(Position2(xpoints[i].b.x, y), Position2(xpoints[i + 1].b.x, y), Direction::down);
+	}
+	//ämíËï”Çìoò^
+	if (y == xpoints[i].a.y || y == xpoints[i + 1].a.y) {
+		_hFixedSegs.emplace_back(Position2(xpoints[i].a.x, y), Position2(xpoints[i + 1].a.x, y), Direction::up);
+		Direction d1 = Direction::left, d2 = Direction::right;
+		if (reverseFlg) {
+			swap(d1, d2);
+		}
+		if (xpoints[i].a.y < y) {
+			_vFixedSegs.emplace_back(Position2(xpoints[i].a.x, y), Position2(xpoints[i].a.x, xpoints[i].b.y), d1);
+		}
+		else {
+			_vFixedSegs.emplace_back(xpoints[i].a, xpoints[i].b, d1);
+		}
+		if (xpoints[i + 1].a.y < y) {
+			_vFixedSegs.emplace_back(Position2(xpoints[i + 1].a.x, y), Position2(xpoints[i + 1].a.x, xpoints[i + 1].b.y), d2);
+		}
+		else {
+			_vFixedSegs.emplace_back(xpoints[i + 1].a, xpoints[i + 1].b, d2);
+		}
+	}
+}
+
 ///ìhÇËÇ¬Ç‘ÇµîÕàÕÇï‘Ç∑
 ///@param hSegs êÖïΩï”
 ///@param vSegs êÇíºï”
@@ -92,6 +119,27 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs,bool reverse
 				y == xpoints[i + 1].b.y ) || 
 				(y == xpoints[i].b.y &&
 					y == xpoints[i + 1].a.y)) {
+
+				//ämíËï”Çìoò^
+				if ((y == xpoints[i].a.y&&y == xpoints[i+1].b.y)||(y == xpoints[i].b.y&&y == xpoints[i + 1].a.y)) {
+					Direction d1 = Direction::left, d2 = Direction::right;
+					if (reverseFlg) {
+						swap(d1, d2);
+					}
+					// |  
+					//  ÅP|
+					if (y == xpoints[i].b.y && y == xpoints[i + 1].a.y) {
+						_hFixedSegs.emplace_back(Position2(xpoints[i].b.x, y), Position2(xpoints[i + 1].b.x, y), Direction::down);
+						_vFixedSegs.emplace_back(xpoints[i].a, xpoints[i].b, d1);
+					}
+					//    |
+					// |ÅP
+					else if (y == xpoints[i].a.y && y == xpoints[i + 1].b.y) {
+						_hFixedSegs.emplace_back(xpoints[i].a, xpoints[i + 1].b, Direction::up);
+						_vFixedSegs.emplace_back(xpoints[i].a, xpoints[i].b, d1);
+					}
+				}
+
 				DrawBox(xpoints[i].a.x, y, xpoints[i+2].a.x, y + 1, 0xffaaaa, true);
 				if (reverseFlg) {
 					DxLib::DrawRectGraph(xpoints[i+2].a.x, y, xpoints[i+2].a.x, y, abs(xpoints[i+2].a.x - xpoints[i].a.x), 1, rewardH, false);
@@ -111,7 +159,7 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs,bool reverse
 					y == xpoints[i + 2].a.y))) {
 				
 				//ämíËï”Çìoò^
-				if (y==xpoints[i+1].a.y&&y==xpoints[i + 2].a.y) {
+				if (y==xpoints[i+1].a.y||y==xpoints[i + 2].a.y) {
 					_hFixedSegs.emplace_back(xpoints[i+1].a, xpoints[i + 2].a, Direction::up);
 					_vFixedSegs.emplace_back(xpoints[i+1].a, xpoints[i+1].b, Direction::left);
 					_vFixedSegs.emplace_back(xpoints[i + 2].a, xpoints[i + 2].b, Direction::right);
@@ -129,29 +177,8 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs,bool reverse
 				++i;//è¡îÔÇµÇ‹ÇµÇΩ(ÇªÇÃÇﬁÇ±Ç§Ç‹Ç≈ìhÇËÇ¬Ç‘ÇµÇƒÇ¢ÇÈÇÃÇ≈ÉJÉEÉìÉgÇêiÇﬂÇÈ)
 			}
 			else {//í èÌìhÇË
-				if (y == xpoints[i].b.y || y == xpoints[i + 1].b.y) {
-					_hFixedSegs.emplace_back(Position2(xpoints[i].b.x, y), Position2(xpoints[i + 1].b.x, y), Direction::down);
-				}
-				//ämíËï”Çìoò^
-				if (y==xpoints[i].a.y || y==xpoints[i + 1].a.y) {
-					_hFixedSegs.emplace_back(Position2(xpoints[i].a.x,y), Position2(xpoints[i+1].a.x, y), Direction::up);
-					Direction d1 = Direction::left, d2 = Direction::right;
-					if (reverseFlg) {
-						swap(d1, d2);
-					}
-					if (xpoints[i].a.y < y) {
-						_vFixedSegs.emplace_back(Position2(xpoints[i].a.x, y), Position2(xpoints[i].a.x, xpoints[i].b.y), d1);
-					}
-					else {
-						_vFixedSegs.emplace_back(xpoints[i].a,xpoints[i].b, d1);
-					}
-					if (xpoints[i + 1].a.y < y) {
-						_vFixedSegs.emplace_back(Position2(xpoints[i+1].a.x, y), Position2(xpoints[i + 1].a.x, xpoints[i + 1].b.y), d2);
-					}
-					else {
-						_vFixedSegs.emplace_back(xpoints[i+1].a,xpoints[i+1].b, d2);
-					}
-				}
+				RegisterFixedSegment(y, xpoints, i, reverseFlg);
+
 				DrawBox(xpoints[i].a.x, y, xpoints[i+1].a.x, y + 1, 0xffaaaa, true);
 				if (reverseFlg) {
 					DxLib::DrawRectGraph(xpoints[i+1].a.x, y, xpoints[i+1].a.x, y, abs(xpoints[i + 1].a.x - xpoints[i].a.x), 1, rewardH, false);

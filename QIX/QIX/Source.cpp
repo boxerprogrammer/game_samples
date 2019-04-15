@@ -67,6 +67,8 @@ int rewardH;
 std::list<Segment> _hFixedSegs;
 std::list<Segment> _vFixedSegs;
 
+void RegisterFixedVerticalSegments(Segment & seg,Direction dir);
+
 void RegisterFixedSegment(int y, std::vector<Segment> &xpoints, int i, bool reverseFlg)
 {
 	//if (y == xpoints[i].b.y || y == xpoints[i + 1].b.y) {
@@ -96,22 +98,31 @@ void RegisterFixedSegment(int y, std::vector<Segment> &xpoints, int i, bool reve
 		if (reverseFlg) {
 			swap(d1, d2);
 		}
-		if ((y== xpoints[i].a.y && y== xpoints[i+1].a.y) || (y == xpoints[i].b.y && y == xpoints[i + 1].b.y)) {//|￣|か|_|
-			_vFixedSegs.emplace_back(xpoints[i], d1);
-			_vFixedSegs.emplace_back(xpoints[i+1], d2);
+		if ((y == xpoints[i].a.y && y == xpoints[i + 1].a.y) ||
+			(y == xpoints[i].b.y && y == xpoints[i + 1].b.y)) {//|￣|か|_|
+			RegisterFixedVerticalSegments(xpoints[i], d1);
+			RegisterFixedVerticalSegments(xpoints[i + 1], d2);
 		}
 		else if(y == xpoints[i].a.y){//|￣壁
-			_vFixedSegs.emplace_back(xpoints[i], d1);
+			RegisterFixedVerticalSegments(xpoints[i], d1);
 		}
 		else if (y == xpoints[i + 1].a.y) {//壁￣|
-			_vFixedSegs.emplace_back(xpoints[i+1], d2);
+			RegisterFixedVerticalSegments(xpoints[i+1], d2);
 		}
 		else if (y == xpoints[i].b.y) {//|_壁
-			_vFixedSegs.emplace_back(xpoints[i], d1);
+			RegisterFixedVerticalSegments(xpoints[i], d1);
 		}
 		else if (y == xpoints[i + 1].b.y) {//壁_|
-			_vFixedSegs.emplace_back(xpoints[i+1], d2);
+			RegisterFixedVerticalSegments(xpoints[i+1], d2);
 		}
+	}
+}
+
+void RegisterFixedVerticalSegments(Segment& seg, Direction dir)
+{
+	
+	if (count(_vFixedSegs.begin(),_vFixedSegs.end(),seg)==0) {
+		_vFixedSegs.emplace_back(seg, dir);
 	}
 }
 
@@ -240,6 +251,8 @@ void DrawDebugStatus(std::list<Position2> &keypoints, std::list<Segment> &hSegme
 
 
 bool IsIntersected(const Segment& lval, const Segment& rval) {
+	if (lval.a == lval.b||rval.a==rval.b)return false;
+	
 	bool lvertical = (lval.a.x == lval.b.x);
 	bool rvertical = (rval.a.x == rval.b.x);
 	if (lvertical == rvertical)return false;//平行なのでクロスしない
@@ -254,6 +267,7 @@ bool IsIntersected(const Segment& lval, const Segment& rval) {
 }
 
 bool IsIntersected(const Segment& seg, const std::list<Segment>& segments,Segment* exclusiveSeg=nullptr) {
+	if (seg.a == seg.b)return false;
 	for (auto& s : segments) {
 		if (exclusiveSeg!=nullptr && s == *exclusiveSeg)continue;
 		if (IsIntersected(seg, s)) {
@@ -261,6 +275,38 @@ bool IsIntersected(const Segment& seg, const std::list<Segment>& segments,Segmen
 		}
 	}
 	return false;
+}
+
+
+bool IsIntersected(const Segment& seg, const std::list<Segment>& segments, std::list<Segment>::const_iterator& out, Segment* exclusiveSeg = nullptr) {
+	if (seg.a == seg.b)return false;
+	auto s = segments.begin();
+	for (s; s != segments.end(); ++s) {
+		if (exclusiveSeg != nullptr && *s == *exclusiveSeg)continue;
+		if (IsIntersected(seg, *s)) {
+			out = s;
+			return true;
+		}
+	}
+	out = segments.end();
+	return false;
+}
+
+void DecideBaseSegmentToRightLeftDirection(Position2& pos, Direction dir,Segment& outerSegment,std::list<Segment>& floatingSegments, Segment*& baseSegment) {
+	//どこかの固定壁から出発したのか？
+	if (pos.x == 0||pos.x==play_area_width) {//左右壁
+		floatingSegments.push_back(outerSegment);
+		baseSegment = &outerSegment;
+	}
+	else {//右端でないなら、どこかの確定辺？
+		auto it = find_if(_vFixedSegs.begin(), _vFixedSegs.end(), [pos,dir](const Segment& seg) {
+			return seg.inner == dir &&  seg.a.x == pos.x && seg.a.y <= pos.y && pos.y <= seg.b.y;
+		});
+		if (it != _vFixedSegs.end()) {
+			floatingSegments.push_back(*it);
+			baseSegment = &(*it);
+		}
+	}
 }
 
 int main() {
@@ -425,26 +471,57 @@ int main() {
 			auto pposx = min(play_area_right,playerPos.x + 2);
 			auto tmppos = playerPos - offset;
 			auto tmpx = pposx - play_area_left;
+			auto diff = keypoints.empty()?Vector2(0,0):(tmppos - keypoints.back());
+			if (diff.y == 0 && diff.x < 0) {//引き返し不可
+				goto draw_part;
+			}
 			if (IsIntersected(Segment(tmppos, Position2(tmpx,tmppos.y)), vSegments, baseSegment)) {
 				pposx = playerPos.x;
 			}
 			if (playerPos.y > play_area_top && playerPos.y < play_area_bottom) {
-				if (playerPos.x == play_area_left) {
-					vSegments.push_back(leftseg);
-					baseSegment = &leftseg;
-				}
-				//右壁に当たった時
-				if (!onTheFrame&&pposx == play_area_right) {
-					//FillConvex準備
-					vSegments.push_back(rightseg);
-					hSegments.emplace_back(keypoints.back(), tmppos);
-					if (vSegments.back() == rightseg && vSegments.front() == leftseg) {
-						//とりあえず上
-						hSegments.push_back(topseg);
+				//出発地点確定
+				//if (playerPos.x == play_area_left) {
+				//	vSegments.push_back(leftseg);
+				//	baseSegment = &leftseg;
+				//}
+				//もし固定壁から出発してたらbaseSegmentを確定する
+				DecideBaseSegmentToRightLeftDirection(tmppos,Direction::right, leftseg, vSegments, baseSegment);
+
+
+				//右壁(もしくは固定辺)に当たった時
+				std::list<Segment>::const_iterator cit = _vFixedSegs.end();
+				if ( pposx == play_area_right || 
+					IsIntersected(Segment(tmppos, Position2(tmpx, tmppos.y)),
+						_vFixedSegs,cit,baseSegment)) {
+					if (cit == _vFixedSegs.end()) {
+						//FillConvex準備
+						vSegments.push_back(rightseg);
 					}
-					//領域塗りつぶし
-					FillVirtualScreen(area, hSegments, vSegments, onTheFrame, keypoints);
-					baseSegment = nullptr;
+					else {
+						if (cit->inner == Direction::left) {
+							pposx = cit->a.x+play_area_left;//吸着
+							if (!onTheFrame) {
+								vSegments.push_back(*cit);
+							}
+						}
+					}
+					if (!onTheFrame) {
+						onTheFrame = true;
+						hSegments.emplace_back(keypoints.back(), tmppos);
+
+						//もし右と左をつなぐような線を引いている場合、ベースがどこにあるのかを確定させたい
+						auto baseIt = find_if(_vFixedSegs.begin(), _vFixedSegs.end(), [baseSegment](const Segment& seg)->bool {
+							return seg == *baseSegment;
+						});
+
+						if (vSegments.back() == rightseg && (vSegments.front() == leftseg || (baseIt!=_vFixedSegs.end() &&vSegments.front() == *baseIt))) {
+							//とりあえず上
+							hSegments.push_back(topseg);
+						}
+						//領域塗りつぶし
+						FillVirtualScreen(area, hSegments, vSegments, onTheFrame, keypoints);
+						baseSegment = nullptr;
+					}
 				}
 				else {
 					if (onTheFrame || lastDirection == Direction::up || lastDirection == Direction::down) {
@@ -464,7 +541,6 @@ int main() {
 			}
 			playerPos.x=pposx;
 			lastDirection = Direction::right;
-			onTheFrame=playerPos.x == play_area_right;
 		}else if (keystate[KEY_INPUT_LEFT] && playerPos.x > play_area_left) {
 			
 			auto pposx = max(play_area_left , playerPos.x - 2);
@@ -474,26 +550,58 @@ int main() {
 				pposx = playerPos.x;
 			}
 			if (playerPos.y > play_area_top && playerPos.y < play_area_bottom) {
-				if (playerPos.x == play_area_right) {
-					vSegments.push_back(rightseg);
-					baseSegment = &rightseg;
-				}
-				//左壁に当たった時
-				if (!onTheFrame && pposx == play_area_left) {
-					//FillConvex準備
-					if (vSegments.front() == leftseg) {
-					}
-					else {
+
+				////どこかの固定壁から出発したのか？
+				//if (playerPos.x == play_area_right ) {//右壁
+				//	vSegments.push_back(rightseg);
+				//	baseSegment = &rightseg;
+				//}
+				//else{//右端でないなら、どこかの確定辺？
+				//	auto it = find_if(_vFixedSegs.begin(), _vFixedSegs.end(), [tmppos](const Segment& seg) {
+				//		return seg.inner == Direction::left &&  seg.a.x == tmppos.x && seg.a.y <= tmppos.y && tmppos.y <= seg.b.y;
+				//	});
+				//	if (it != _vFixedSegs.end()) {
+				//		vSegments.push_back(*it);
+				//		baseSegment = &(*it);
+				//	}
+				//}
+				//もし固定壁から出発してたらbaseSegmentを確定する
+				DecideBaseSegmentToRightLeftDirection(tmppos, Direction::left, rightseg, vSegments, baseSegment);
+
+				std::list<Segment>::const_iterator cit = _vFixedSegs.end();
+				//左壁(もしくは固定辺)に当たった時
+				if (pposx == play_area_left || 
+					IsIntersected(Segment(tmppos, Position2(tmpx, tmppos.y)),
+						_vFixedSegs, cit, baseSegment)) {
+					if (cit == _vFixedSegs.end()) {
 						vSegments.push_back(leftseg);
 					}
-					hSegments.emplace_back(keypoints.back(), tmppos);
-					if (vSegments.back() == leftseg && vSegments.front() == rightseg) {
-						//とりあえず下
-						hSegments.push_back(bottomseg);
+					else {
+						if (cit->inner == Direction::right) {
+							pposx = cit->a.x + play_area_left;//吸着
+							if (!onTheFrame) {
+								vSegments.push_back(*cit);
+							}
+						}
 					}
-					//領域塗りつぶし
-					FillVirtualScreen(area, hSegments, vSegments, onTheFrame, keypoints,true);
-					baseSegment = nullptr;
+					if (!onTheFrame) {
+						onTheFrame = true;
+						hSegments.emplace_back(keypoints.back(), tmppos);
+
+
+						//もし右と左をつなぐような線を引いている場合、ベースがどこにあるのかを確定させたい
+						auto baseIt = find_if(_vFixedSegs.begin(), _vFixedSegs.end(), [baseSegment](const Segment& seg)->bool {
+							return seg == *baseSegment;
+						});
+
+						if (vSegments.back() == leftseg && (vSegments.front() == rightseg || ((baseIt != _vFixedSegs.end() && vSegments.front() == *baseIt)))) {
+							//とりあえず下
+							hSegments.push_back(bottomseg);
+						}
+						//領域塗りつぶし
+						FillVirtualScreen(area, hSegments, vSegments, onTheFrame, keypoints, true);
+						baseSegment = nullptr;
+					}
 				}
 				else {
 
@@ -515,9 +623,8 @@ int main() {
 			}
 			playerPos.x = pposx;
 			lastDirection = Direction::left;
-			onTheFrame = playerPos.x == play_area_left;
 		}
-
+draw_part:
 		//枠描画
 		DxLib::DrawBox(offset.x-1, offset.y-1, offset.x + 451, offset.y + 401, 0xffffff, false);
 		DxLib::DrawBox(offset.x, offset.y, offset.x + play_area_width, offset.y+play_area_height, 0xffffff, false);
@@ -539,42 +646,42 @@ int main() {
 		frame = (frame + 1) % 60;
 		//デバッグ用
 		//確定線描画
-		for (auto& s : _hFixedSegs) {
-			DrawLine(s.a.x+play_area_left, 
-				s.a.y+ play_area_top, 
-				s.b.x+play_area_left, 
-				s.b.y+ play_area_top, 0xaaffaa, 1);
-			DrawLine(s.a.x + play_area_left, 
-				s.a.y + play_area_top+1,
-				s.b.x + play_area_left,
-				s.b.y + play_area_top+1, 0xff0000, 1);
+		//for (auto& s : _hFixedSegs) {
+		//	DrawLine(s.a.x+play_area_left, 
+		//		s.a.y+ play_area_top, 
+		//		s.b.x+play_area_left, 
+		//		s.b.y+ play_area_top, 0xaaffaa, 1);
+		//	DrawLine(s.a.x + play_area_left, 
+		//		s.a.y + play_area_top+1,
+		//		s.b.x + play_area_left,
+		//		s.b.y + play_area_top+1, 0xff0000, 1);
 
-			//方向
-			auto m = (s.a.x + s.b.x) / 2 + play_area_left;
-			auto y1 = s.a.y + play_area_top;
-			auto y2 = s.a.y + play_area_top+(s.inner==Direction::up?-10:10);
-			DrawLine(m, y1,
-				m,
-				y2, 0xff0000, 1);
-		}
-		for (auto& s : _vFixedSegs) {
-			DrawLine(s.a.x + play_area_left, 
-				s.a.y + play_area_top,
-				s.b.x + play_area_left,
-				s.b.y + play_area_top, 0xaaffaa, 1);
-			DrawLine(s.a.x + play_area_left, 
-				s.a.y + play_area_top,
-				s.b.x + play_area_left + (s.inner == Direction::left ? 1 : -1),
-				s.b.y + play_area_top , 0xff0000, 1);
+		//	//方向
+		//	auto m = (s.a.x + s.b.x) / 2 + play_area_left;
+		//	auto y1 = s.a.y + play_area_top;
+		//	auto y2 = s.a.y + play_area_top+(s.inner==Direction::up?-10:10);
+		//	DrawLine(m, y1,
+		//		m,
+		//		y2, 0xff0000, 1);
+		//}
+		//for (auto& s : _vFixedSegs) {
+		//	DrawLine(s.a.x + play_area_left, 
+		//		s.a.y + play_area_top,
+		//		s.b.x + play_area_left,
+		//		s.b.y + play_area_top, 0xaaffaa, 1);
+		//	DrawLine(s.a.x + play_area_left, 
+		//		s.a.y + play_area_top,
+		//		s.b.x + play_area_left + (s.inner == Direction::left ? 1 : -1),
+		//		s.b.y + play_area_top , 0xff0000, 1);
 
-			//方向
-			auto m = (s.a.y + s.b.y) / 2 + play_area_top;
-			auto x1 = s.a.x + play_area_left;
-			auto x2 = s.a.x + play_area_left + (s.inner == Direction::left ? -10 : 10);
-			DrawLine(x1, m,
-				x2,
-				m, 0xff0000, 1);
-		}
+		//	//方向
+		//	auto m = (s.a.y + s.b.y) / 2 + play_area_top;
+		//	auto x1 = s.a.x + play_area_left;
+		//	auto x2 = s.a.x + play_area_left + (s.inner == Direction::left ? -10 : 10);
+		//	DrawLine(x1, m,
+		//		x2,
+		//		m, 0xff0000, 1);
+		//}
 
 		DrawDebugStatus(keypoints, hSegments, vSegments);
 		DrawFormatString(512, 350, 0xffffff, "fps=%f", 1000.0f/static_cast<float>(GetTickCount() - count));

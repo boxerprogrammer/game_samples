@@ -63,3 +63,5 @@
 /QIX/DxLibTest/x64/Debug/QIX.tlog/CL.command.1.tlog
 /QIX/x64/Debug/QIX.pdb
 /QIX/x64/Debug/QIX.ilk
+/QIX/DxLibTest/x64/Debug/*
+/QIX/QIX/Log.txt

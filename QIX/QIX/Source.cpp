@@ -188,13 +188,6 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs,bool reverse
 					y == xpoints[i + 2].a.y))) {
 				
 				//Šm’è•Ó‚ð“o˜^
-				//if (y==xpoints[i+1].a.y||y==xpoints[i + 2].a.y) {
-				//	_hFixedSegs.emplace_back(xpoints[i+1].a, xpoints[i + 2].a, Direction::up);
-				//	_vFixedSegs.emplace_back(xpoints[i+1].a, xpoints[i+1].b, Direction::left);
-				//	_vFixedSegs.emplace_back(xpoints[i + 2].a, xpoints[i + 2].b, Direction::right);
-				//}
-
-				//Šm’è•Ó‚ð“o˜^
 				if ((y == xpoints[i+1].a.y&&y == xpoints[i + 2].b.y) || (y == xpoints[i+1].b.y&&y == xpoints[i + 2].a.y)) {
 					Direction d1 = Direction::left, d2 = Direction::right;
 					if (reverseFlg) {

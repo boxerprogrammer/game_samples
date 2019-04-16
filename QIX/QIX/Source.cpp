@@ -690,10 +690,10 @@ draw_part:
 		DxLib::DrawGraph(play_area_left, play_area_top, area, true);
 		
 		//自機描画
-		if (!onTheFrame && baseSegment) {//もしフレーム上になくベース線もないならバグ
+		if (!onTheFrame && baseSegment==nullptr) {//もしフレーム上になくベース線もないならバグ
 			DxLib::DrawCircle(playerPos.x, playerPos.y,
 				3 + 3.0*float(abs(frame - 30) / 60.0f),
-				onTheFrame ? 0xaaffaa : 0xffff88,
+				0xff0000,
 				true);
 		}
 		else {

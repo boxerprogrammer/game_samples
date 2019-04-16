@@ -60,6 +60,10 @@ struct Segment {
 			swap(a, b);
 		}
 	}
+	bool IsOn(const Position2& pos)const {
+		return (a.y == pos.y && a.x <= pos.x && pos.x <= b.x) ||
+			(a.x == pos.x && a.y <= pos.y && pos.y <= b.y);
+	}
 };
 
 bool operator==(const Segment& lval,const Segment& rval) {
@@ -67,6 +71,7 @@ bool operator==(const Segment& lval,const Segment& rval) {
 }
 int rewardH;
 
+Position2 _lastTmpPos=Vector2(0,0);
 std::list<Segment> _hFixedSegs;
 std::list<Segment> _vFixedSegs;
 
@@ -121,12 +126,25 @@ void RegisterFixedSegment(int y, std::vector<Segment> &xpoints, int i, bool reve
 	}
 }
 
-void RegisterFixedVerticalSegments(Segment& seg, Direction dir)
-{
-	
+void RegisterFixedVerticalSegments(Segment& seg, Direction dir){
 	if (count(_vFixedSegs.begin(),_vFixedSegs.end(),seg)==0) {
 		_vFixedSegs.emplace_back(seg, dir);
 	}
+}
+
+bool 
+OnTheFrame(const Position2& pos){
+	//縦辺チェック
+	auto vcount = count_if(_vFixedSegs.begin(), _vFixedSegs.end(), [pos](const Segment& seg)->bool {
+		return seg.IsOn(pos);
+	});
+	if (vcount > 0)return true;
+	//横辺チェック
+	auto hcount = count_if(_hFixedSegs.begin(), _hFixedSegs.end(), [pos](const Segment& seg)->bool {
+		return seg.IsOn(pos);
+	});
+	if (hcount > 0)return true;
+	return false;
 }
 
 ///塗りつぶし範囲を返す
@@ -302,8 +320,9 @@ void DecideBaseSegmentToRightLeftDirection(Position2& pos, Direction dir,Segment
 		baseSegment = &outerSegment;
 	}
 	else {//右端でないなら、どこかの確定辺？
-		auto it = find_if(_vFixedSegs.begin(), _vFixedSegs.end(), [pos,dir](const Segment& seg) {
-			return seg.inner == dir &&  seg.a.x == pos.x && seg.a.y <= pos.y && pos.y <= seg.b.y;
+		auto s = Segment(pos,_lastTmpPos);
+		auto it = find_if(_vFixedSegs.begin(), _vFixedSegs.end(), [s,dir](const Segment& seg) {
+			return seg.inner == dir && IsIntersected(s, seg); //&&  seg.a.x == pos.x && seg.a.y <= pos.y && pos.y <= seg.b.y;
 		});
 		if (it != _vFixedSegs.end()) {
 			floatingSegments.push_back(*it);
@@ -448,14 +467,16 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 	Segment* baseSegment=nullptr;//出発地点のセグメント
 
 	int frame = 30;
-
+	auto tmppos = playerPos - offset;
 	while (!ProcessMessage()) {
-		
+		_lastTmpPos = tmppos;
+		tmppos = playerPos - offset;
+		onTheFrame = OnTheFrame(tmppos);
 		ClearDrawScreen();
 		DxLib::GetHitKeyStateAll(keystate);
 		if (keystate[KEY_INPUT_UP]&&playerPos.y > play_area_top ) {
 			auto pposy = max(play_area_top,playerPos.y -2);
-			auto tmppos = playerPos - offset;
+			
 			auto tmpy = pposy - play_area_top;
 			if (IsIntersected(Segment(tmppos, Position2(tmppos.x, tmpy)),hSegments, baseSegment)) {
 				pposy = playerPos.y;
@@ -498,7 +519,7 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 		else if (keystate[KEY_INPUT_DOWN] && playerPos.y < play_area_bottom) {
 
 			auto pposy = min(play_area_bottom, playerPos.y + 2);
-			auto tmppos = playerPos - offset;
+			//auto tmppos = playerPos - offset;
 			auto tmpy = pposy - play_area_top;
 			if (IsIntersected(Segment(tmppos, Position2(tmppos.x, tmpy)), hSegments, baseSegment)) {
 				pposy = playerPos.y;
@@ -543,7 +564,7 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 			lastDirection = Direction::down;
 		}else if (keystate[KEY_INPUT_RIGHT] && playerPos.x < play_area_right) {
 			auto pposx = min(play_area_right,playerPos.x + 2);
-			auto tmppos = playerPos - offset;
+			//auto tmppos = playerPos - offset;
 			auto tmpx = pposx - play_area_left;
 			auto diff = keypoints.empty()?Vector2(0,0):(tmppos - keypoints.back());
 			if (diff.y == 0 && diff.x < 0) {//引き返し不可
@@ -566,7 +587,7 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 				std::list<Segment>::const_iterator cit = _vFixedSegs.end();
 				if ( pposx == play_area_right || 
 					IsIntersected(Segment(tmppos, Position2(tmpx, tmppos.y)),
-						_vFixedSegs,cit,baseSegment)) {
+						_vFixedSegs,cit/*,baseSegment*/)) {
 					if (cit == _vFixedSegs.end()) {
 						//FillConvex準備
 						vSegments.push_back(rightseg);
@@ -621,12 +642,12 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 		}else if (keystate[KEY_INPUT_LEFT] && playerPos.x > play_area_left) {
 			
 			auto pposx = max(play_area_left , playerPos.x - 2);
-			auto tmppos = playerPos - offset;
+			//auto tmppos = playerPos - offset;
 			auto tmpx = pposx - play_area_left;
 			if (IsIntersected(Segment(tmppos, Position2(tmpx, tmppos.y)), vSegments, baseSegment)) {
 				pposx = playerPos.x;
 			}
-			if (playerPos.y > play_area_top && playerPos.y < play_area_bottom) {
+			if (!onTheFrame && playerPos.y > play_area_top && playerPos.y < play_area_bottom) {
 
 				DecideBaseSegmentToRightLeftDirection(tmppos, Direction::left, rightseg, vSegments, baseSegment);
 
@@ -683,6 +704,7 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 					}
 				}
 			}
+			
 			playerPos.x = pposx;
 			lastDirection = Direction::left;
 		}

@@ -312,6 +312,23 @@ void DecideBaseSegmentToRightLeftDirection(Position2& pos, Direction dir,Segment
 	}
 }
 
+void DecideBaseSegmentToUpDownDirection(Position2& pos, Direction dir, Segment& outerSegment, std::list<Segment>& floatingSegments, Segment*& baseSegment) {
+	//どこかの固定壁から出発したのか？
+	if (pos.y == 0 || pos.y == play_area_height) {//上下壁
+		floatingSegments.push_back(outerSegment);
+		baseSegment = &outerSegment;
+	}
+	else {//右端でないなら、どこかの確定辺？
+		auto it = find_if(_hFixedSegs.begin(), _hFixedSegs.end(), [pos, dir](const Segment& seg) {
+			return seg.inner == dir && seg.a.y == pos.y && seg.a.x <= pos.x && pos.x <= seg.b.x;
+		});
+		if (it != _hFixedSegs.end()) {
+			floatingSegments.push_back(*it);
+			baseSegment = &(*it);
+		}
+	}
+}
+
 void DrawDebugLines() {
 	//横線
 	for (auto& s : _hFixedSegs) {
@@ -444,11 +461,8 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 				pposy = playerPos.y;
 			}
 			if (playerPos.x > play_area_left && playerPos.x < play_area_right) {
-				if (playerPos.y == play_area_bottom) {
-					hSegments.push_back(bottomseg);
-					baseSegment = &bottomseg;
-				}
-
+				//出発地点が壁床だったら…つまり
+				DecideBaseSegmentToUpDownDirection(tmppos,Direction::up,bottomseg,hSegments,baseSegment );
 				
 				//上壁に当たった時
 				if (!onTheFrame&&pposy == play_area_top) {

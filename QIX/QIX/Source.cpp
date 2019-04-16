@@ -3,7 +3,9 @@
 #include<list>
 #include<algorithm>
 #include<cassert>
+#include<iostream>
 #include"Geometry.h"
+#include"Debug.h"
 
 constexpr unsigned int scr_w = 640;
 constexpr unsigned int scr_h = 480;
@@ -39,6 +41,7 @@ struct Segment {
 			swap(a, b);
 		}
 	}
+
 	Segment(const Position2& lval, const Position2& rval,Direction dir=Direction::none) :a(lval), b(rval),inner(dir) {
 		if (rval.x < lval.x) {
 			a = rval;
@@ -309,7 +312,62 @@ void DecideBaseSegmentToRightLeftDirection(Position2& pos, Direction dir,Segment
 	}
 }
 
+void DrawDebugLines() {
+	//横線
+	for (auto& s : _hFixedSegs) {
+		DrawLine(s.a.x + play_area_left,
+			s.a.y + play_area_top,
+			s.b.x + play_area_left,
+			s.b.y + play_area_top, 0xaaffaa, 1);
+		if (s.inner != Direction::none) {
+			DrawLine(s.a.x + play_area_left,
+				s.a.y + play_area_top + (s.inner == Direction::up ? 1 : -1),
+				s.b.x + play_area_left,
+				s.b.y + play_area_top + (s.inner == Direction::up ? 1 : -1),
+				0xff0000, 1);
+		}
+
+		//方向
+		auto m = (s.a.x + s.b.x) / 2 + play_area_left;
+		auto y1 = s.a.y + play_area_top;
+		auto y2 = s.a.y + play_area_top + (s.inner == Direction::up ? -10 : 10);
+		DrawLine(m, y1,
+			m,
+			y2, 0xff0000, 1);
+	}
+	//縦線
+	for (auto& s : _vFixedSegs) {
+		DrawLine(s.a.x + play_area_left,
+			s.a.y + play_area_top,
+			s.b.x + play_area_left,
+			s.b.y + play_area_top, 0xaaffaa, 1);
+		if (s.inner != Direction::none) {
+			DrawLine(s.a.x + play_area_left + (s.inner == Direction::left ? 1 : -1),
+				s.a.y + play_area_top,
+				s.b.x + play_area_left + (s.inner == Direction::left ? 1 : -1),
+				s.b.y + play_area_top, 0xff0000, 1);
+		}
+
+		//方向
+		auto m = (s.a.y + s.b.y) / 2 + play_area_top;
+		auto x1 = s.a.x + play_area_left;
+		auto x2 = s.a.x + play_area_left + (s.inner == Direction::left ? -10 : 10);
+		DrawLine(x1, m,
+			x2,
+			m, 0xff0000, 1);
+	}
+
+}
+
+
+#ifdef _DEBUG
 int main() {
+#else
+int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){ 
+#endif
+	cout << "Application Start" << endl;
+
+	
 	ChangeWindowMode(true);
 	DxLib::SetWindowText("QIX");
 	DxLib::SetGraphMode(scr_w, scr_h, 32);
@@ -356,13 +414,15 @@ int main() {
 	std::list<Segment> vSegments;//垂直方向線分
 	
 	//上下左右セグメント
-	Segment topseg(0,0,play_area_width,0);
-	Segment bottomseg(0, play_area_height, play_area_width, play_area_height);
-	Segment leftseg(0, 0, 0, play_area_height);
-	Segment rightseg(play_area_width, 0, play_area_width, play_area_height);
+	Segment topseg(0,0,play_area_width,0,Direction::down);
+	Segment bottomseg(0, play_area_height, play_area_width, play_area_height,Direction::up);
+	Segment leftseg(0, 0, 0, play_area_height,Direction::right);
+	Segment rightseg(play_area_width, 0, play_area_width, play_area_height,Direction::left);
 
-
-
+	_vFixedSegs.emplace_back(rightseg,rightseg.inner);
+	_vFixedSegs.emplace_back(leftseg,leftseg.inner);
+	_hFixedSegs.emplace_back(topseg,topseg.inner);
+	_hFixedSegs.emplace_back(bottomseg,bottomseg.inner);
 
 	bool onTheFrame = true;//外枠の上にいるか？
 
@@ -508,7 +568,10 @@ int main() {
 					if (!onTheFrame) {
 						onTheFrame = true;
 						hSegments.emplace_back(keypoints.back(), tmppos);
-
+						if (baseSegment == nullptr) {
+							Debug::WriteLine(__FILE__, __LINE__, "baseSegment is nullptr");
+							goto draw_part;
+						}
 						//もし右と左をつなぐような線を引いている場合、ベースがどこにあるのかを確定させたい
 						auto baseIt = find_if(_vFixedSegs.begin(), _vFixedSegs.end(), [baseSegment](const Segment& seg)->bool {
 							return seg == *baseSegment;
@@ -551,21 +614,6 @@ int main() {
 			}
 			if (playerPos.y > play_area_top && playerPos.y < play_area_bottom) {
 
-				////どこかの固定壁から出発したのか？
-				//if (playerPos.x == play_area_right ) {//右壁
-				//	vSegments.push_back(rightseg);
-				//	baseSegment = &rightseg;
-				//}
-				//else{//右端でないなら、どこかの確定辺？
-				//	auto it = find_if(_vFixedSegs.begin(), _vFixedSegs.end(), [tmppos](const Segment& seg) {
-				//		return seg.inner == Direction::left &&  seg.a.x == tmppos.x && seg.a.y <= tmppos.y && tmppos.y <= seg.b.y;
-				//	});
-				//	if (it != _vFixedSegs.end()) {
-				//		vSegments.push_back(*it);
-				//		baseSegment = &(*it);
-				//	}
-				//}
-				//もし固定壁から出発してたらbaseSegmentを確定する
 				DecideBaseSegmentToRightLeftDirection(tmppos, Direction::left, rightseg, vSegments, baseSegment);
 
 				std::list<Segment>::const_iterator cit = _vFixedSegs.end();
@@ -642,46 +690,23 @@ draw_part:
 		DxLib::DrawGraph(play_area_left, play_area_top, area, true);
 		
 		//自機描画
-		DxLib::DrawCircle(playerPos.x, playerPos.y, 3+3.0*float(abs(frame-30)/60.0f), 0xffff88, true);
+		if (!onTheFrame && baseSegment) {//もしフレーム上になくベース線もないならバグ
+			DxLib::DrawCircle(playerPos.x, playerPos.y,
+				3 + 3.0*float(abs(frame - 30) / 60.0f),
+				onTheFrame ? 0xaaffaa : 0xffff88,
+				true);
+		}
+		else {
+			DxLib::DrawCircle(playerPos.x, playerPos.y,
+				3 + 3.0*float(abs(frame - 30) / 60.0f),
+				onTheFrame ? 0xaaffaa : 0xffff88,
+				true);
+		}
+
 		frame = (frame + 1) % 60;
 		//デバッグ用
 		//確定線描画
-		//for (auto& s : _hFixedSegs) {
-		//	DrawLine(s.a.x+play_area_left, 
-		//		s.a.y+ play_area_top, 
-		//		s.b.x+play_area_left, 
-		//		s.b.y+ play_area_top, 0xaaffaa, 1);
-		//	DrawLine(s.a.x + play_area_left, 
-		//		s.a.y + play_area_top+1,
-		//		s.b.x + play_area_left,
-		//		s.b.y + play_area_top+1, 0xff0000, 1);
-
-		//	//方向
-		//	auto m = (s.a.x + s.b.x) / 2 + play_area_left;
-		//	auto y1 = s.a.y + play_area_top;
-		//	auto y2 = s.a.y + play_area_top+(s.inner==Direction::up?-10:10);
-		//	DrawLine(m, y1,
-		//		m,
-		//		y2, 0xff0000, 1);
-		//}
-		//for (auto& s : _vFixedSegs) {
-		//	DrawLine(s.a.x + play_area_left, 
-		//		s.a.y + play_area_top,
-		//		s.b.x + play_area_left,
-		//		s.b.y + play_area_top, 0xaaffaa, 1);
-		//	DrawLine(s.a.x + play_area_left, 
-		//		s.a.y + play_area_top,
-		//		s.b.x + play_area_left + (s.inner == Direction::left ? 1 : -1),
-		//		s.b.y + play_area_top , 0xff0000, 1);
-
-		//	//方向
-		//	auto m = (s.a.y + s.b.y) / 2 + play_area_top;
-		//	auto x1 = s.a.x + play_area_left;
-		//	auto x2 = s.a.x + play_area_left + (s.inner == Direction::left ? -10 : 10);
-		//	DrawLine(x1, m,
-		//		x2,
-		//		m, 0xff0000, 1);
-		//}
+		DrawDebugLines();
 
 		DrawDebugStatus(keypoints, hSegments, vSegments);
 		DrawFormatString(512, 350, 0xffffff, "fps=%f", 1000.0f/static_cast<float>(GetTickCount() - count));

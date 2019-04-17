@@ -575,11 +575,7 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 				pposx = playerPos.x;
 			}
 			if (playerPos.y > play_area_top && playerPos.y < play_area_bottom) {
-				//出発地点確定
-				//if (playerPos.x == play_area_left) {
-				//	vSegments.push_back(leftseg);
-				//	baseSegment = &leftseg;
-				//}
+
 				//もし固定壁から出発してたらbaseSegmentを確定する
 				DecideBaseSegmentToRightLeftDirection(tmppos,Direction::right, leftseg, vSegments, baseSegment);
 

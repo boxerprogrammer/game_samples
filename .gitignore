@@ -83,3 +83,12 @@
 /QIX/QIX/Debug/*.pdb
 /QIX/QIX/Debug/QIX.tlog/*.tlog
 /QIX/QIX/Debug/QIX.tlog/*.lastbuildstate
+/QIX/QIX/x64/Debug/vc141.pdb
+/QIX/QIX/x64/Debug/vc141.idb
+/QIX/QIX/x64/Debug/QIX.tlog/QIX.lastbuildstate
+/QIX/QIX/x64/Debug/QIX.tlog/link.write.1.tlog
+/QIX/QIX/x64/Debug/QIX.tlog/link.read.1.tlog
+/QIX/QIX/x64/Debug/QIX.tlog/link.command.1.tlog
+/QIX/QIX/x64/Debug/QIX.tlog/CL.write.1.tlog
+/QIX/QIX/x64/Debug/QIX.tlog/CL.read.1.tlog
+/QIX/QIX/x64/Debug/QIX.tlog/CL.command.1.tlog

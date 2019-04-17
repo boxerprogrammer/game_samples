@@ -465,12 +465,13 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 	auto count = GetTickCount();
 
 	Segment* baseSegment=nullptr;//出発地点のセグメント
-
+	bool _lastOnTheFrame = false;
 	int frame = 30;
 	auto tmppos = playerPos - offset;
 	while (!ProcessMessage()) {
 		_lastTmpPos = tmppos;
 		tmppos = playerPos - offset;
+		_lastOnTheFrame = onTheFrame;
 		onTheFrame = OnTheFrame(tmppos);
 		ClearDrawScreen();
 		DxLib::GetHitKeyStateAll(keystate);
@@ -688,7 +689,7 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 				}
 				else {
 
-					if (onTheFrame || lastDirection == Direction::up || lastDirection == Direction::down) {
+					if ((!onTheFrame&&_lastOnTheFrame) || lastDirection == Direction::up || lastDirection == Direction::down) {
 
 						if (!keypoints.empty()) {
 							if (keypoints.back().x == tmppos.x) {

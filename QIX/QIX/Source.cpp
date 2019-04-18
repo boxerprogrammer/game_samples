@@ -79,22 +79,15 @@ void RegisterFixedVerticalSegments(Segment & seg,Direction dir);
 
 void RegisterFixedSegment(int y, std::vector<Segment> &xpoints, int i, bool reverseFlg)
 {
-	//if (y == xpoints[i].b.y || y == xpoints[i + 1].b.y) {
-	//	_hFixedSegs.emplace_back(Position2(xpoints[i].b.x, y), Position2(xpoints[i + 1].b.x, y), Direction::down);
-	//}
 	//ämíËï”Çìoò^
 	if ((y == xpoints[i].a.y && y == xpoints[i + 1].a.y) || (y == xpoints[i].b.y && y == xpoints[i + 1].b.y ) ||//|ÅQ|Ç©|ÅP|Ç©
 		(y == xpoints[i].a.y && (xpoints[i + 1].a.y < y&&y < xpoints[i + 1].b.y)) ||//|ÅPï«Ç©
 		(y == xpoints[i + 1].a.y && (xpoints[i].a.y < y&&y < xpoints[i].b.y)) || //ï«ÅP|Ç©
 		(y == xpoints[i].b.y && (xpoints[i + 1].a.y < y&&y < xpoints[i + 1].b.y)) || //|_ï«Ç©
 		(y == xpoints[i + 1].b.y && (xpoints[i].a.y < y&&y < xpoints[i].b.y))) {//ï«_|
-		
-		Direction updown = Direction::up;
-
 		if ((y == xpoints[i].b.y && y == xpoints[i + 1].b.y)|| //|ÅQ|
 			(y == xpoints[i].b.y && (xpoints[i + 1].a.y<y&&y< xpoints[i + 1].b.y))||//|_ï«
 			(y == xpoints[i+1].b.y && (xpoints[i].a.y < y&&y < xpoints[i].b.y))) {//ï«_|
-			updown = Direction::down;
 			_hFixedSegs.emplace_back(Position2(xpoints[i].b.x, y), Position2(xpoints[i + 1].b.x, y), Direction::down);
 		}
 		else {
@@ -182,6 +175,7 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs, bool revers
 	if (reverseFlg) {
 		vSegs.reverse();
 	}
+
 	auto hIt = hSegs.begin();
 	auto top = hIt->a.y;
 	auto bottom = hSegs.back().a.y;
@@ -197,11 +191,8 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs, bool revers
 			//  |Å@        |
 			//  Å™Ç±Ç§Ç¢Ç§èÍçá
 			if ((i + 2) < drawcount&&
-				(y == xpoints[i].a.y &&
-				y == xpoints[i + 1].b.y ) || 
-				(y == xpoints[i].b.y &&
-					y == xpoints[i + 1].a.y)) {
-
+				((y == xpoints[i].a.y &&	y == xpoints[i + 1].b.y ) || 
+				(y == xpoints[i].b.y && y == xpoints[i + 1].a.y))) {
 				//ämíËï”Çìoò^
 				if ((y == xpoints[i].a.y&&y == xpoints[i+1].b.y)||(y == xpoints[i].b.y&&y == xpoints[i + 1].a.y)) {
 					Direction d1 = Direction::left, d2 = Direction::right;
@@ -239,9 +230,8 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs, bool revers
 			//|Å@        |
 			//Å™Ç±Ç§Ç¢Ç§èÍçá
 			else if ((i + 2) < drawcount&&
-				((y == xpoints[i + 1].a.y &&
-				y == xpoints[i + 2].b.y) || (y == xpoints[i + 1].b.y &&
-					y == xpoints[i + 2].a.y))) {
+				((y == xpoints[i + 1].a.y && y == xpoints[i + 2].b.y) || 
+				 (y == xpoints[i + 1].b.y && y == xpoints[i + 2].a.y))) {
 				
 				//ämíËï”Çìoò^
 				if ((y == xpoints[i+1].a.y&&y == xpoints[i + 2].b.y) || (y == xpoints[i+1].b.y&&y == xpoints[i + 2].a.y)) {
@@ -514,7 +504,7 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 	
 	ChangeWindowMode(true);
 	DxLib::SetWindowText("QIX 000000_êÏñÏó≥àÍ");
-	DxLib::SetGraphMode(scr_w, scr_h, 32);
+	DxLib::SetGraphMode(scr_w+200, scr_h, 32);//ÉfÉoÉbÉOóp+200
 	DxLib_Init();
 	DxLib::SetDrawScreen(DX_SCREEN_BACK);
 	rewardH = DxLib::LoadGraph("img/reward.jpg");

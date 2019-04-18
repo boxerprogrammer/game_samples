@@ -395,6 +395,77 @@ void DrawDebugLines() {
 
 }
 
+void 
+DrawDebugInfo(list<Position2> &keypoints, 
+	list<Segment> &hSegments, 
+	list<Segment> &vSegments, 
+	const DWORD &count) {
+	//確定線描画
+	DrawDebugLines();
+	DrawDebugStatus(keypoints, hSegments, vSegments);
+	DrawFormatString(512, 350, 0xffffff, "fps=%f", 1000.0f / static_cast<float>(GetTickCount() - count));
+
+}
+
+void DrawPlayer(bool onTheFrame, 
+	Segment * baseSegment, 
+	Position2 &playerPos, 
+	int frame) {
+	if (!onTheFrame && baseSegment == nullptr) {//もしフレーム上になくベース線もないならバグ
+		DxLib::DrawCircle(playerPos.x, playerPos.y,
+			3 + 3.0*float(abs(frame - 30) / 60.0f),
+			0xff0000,
+			true);
+	}
+	else {
+		DxLib::DrawCircle(playerPos.x, playerPos.y,
+			3 + 3.0*float(abs(frame - 30) / 60.0f),
+			onTheFrame ? 0xaaffaa : 0xffff88,
+			true);
+	}
+}
+
+void 
+DrawOuterFrame(Vector2 &offset) {
+	DxLib::DrawBox(offset.x - 1, offset.y - 1, offset.x + 451, offset.y + 401, 0xffffff, false);
+	DxLib::DrawBox(offset.x, offset.y, offset.x + play_area_width, offset.y + play_area_height, 0xffffff, false);
+}
+
+void 
+DrawPlayArea(int area, 
+	Position2 &playerPos) {
+	DxLib::SetDrawScreen(area);
+	auto tmpPos = playerPos - Vector2(play_area_left, play_area_top);
+	//軌跡仮描画
+	DxLib::DrawBox(tmpPos.x - 1, tmpPos.y - 1, tmpPos.x + 1, tmpPos.y + 1, 0xffffff, true);
+
+	/*DrawCircle(playerPos.x- play_areaX, playerPos.y- play_areaY, 1, 0xffffff, true);*/
+	DxLib::SetDrawScreen(DX_SCREEN_BACK);
+
+
+}
+
+void 
+DrawGame(Vector2 &offset, int area, Position2 &playerPos, 
+	Segment * baseSegment, 	int frame, 
+	list<Position2> &keypoints, list<Segment> &hSegments, 
+	list<Segment> &vSegments, DWORD &count) {
+	//枠描画
+	DrawOuterFrame(offset);
+
+	//塗りつぶし領域の描画
+	DrawPlayArea(area, playerPos);
+
+	//軌跡描画
+	DxLib::DrawGraph(play_area_left, play_area_top, area, true);
+
+	//自機描画
+	DrawPlayer(OnTheFrame, baseSegment, playerPos, frame);
+
+	//デバッグ用
+	DrawDebugInfo(keypoints, hSegments, vSegments, count);
+
+}
 
 #ifdef _DEBUG
 int main() {
@@ -405,7 +476,7 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 
 	
 	ChangeWindowMode(true);
-	DxLib::SetWindowText("QIX");
+	DxLib::SetWindowText("QIX 000000_川野竜一");
 	DxLib::SetGraphMode(scr_w, scr_h, 32);
 	DxLib_Init();
 	DxLib::SetDrawScreen(DX_SCREEN_BACK);
@@ -420,7 +491,6 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 		play_area_bottom-play_area_top, 
 		true);
 	
-	char field[225][200] = {};
 	bool firstUp = true;
 
 	Direction lastDirection = Direction::up;
@@ -575,11 +645,6 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 				pposx = playerPos.x;
 			}
 			if (playerPos.y > play_area_top && playerPos.y < play_area_bottom) {
-				//出発地点確定
-				//if (playerPos.x == play_area_left) {
-				//	vSegments.push_back(leftseg);
-				//	baseSegment = &leftseg;
-				//}
 				//もし固定壁から出発してたらbaseSegmentを確定する
 				DecideBaseSegmentToRightLeftDirection(tmppos,Direction::right, leftseg, vSegments, baseSegment);
 
@@ -710,43 +775,10 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 			lastDirection = Direction::left;
 		}
 draw_part:
-		//枠描画
-		DxLib::DrawBox(offset.x-1, offset.y-1, offset.x + 451, offset.y + 401, 0xffffff, false);
-		DxLib::DrawBox(offset.x, offset.y, offset.x + play_area_width, offset.y+play_area_height, 0xffffff, false);
 		
-
-		DxLib::SetDrawScreen(area);
-		auto tmpPos = playerPos - Vector2(play_area_left, play_area_top);
-		//軌跡仮描画
-		DxLib::DrawBox(tmpPos.x - 1, tmpPos.y - 1, tmpPos.x + 1, tmpPos.y + 1, 0xffffff, true);
-
-		/*DrawCircle(playerPos.x- play_areaX, playerPos.y- play_areaY, 1, 0xffffff, true);*/
-		DxLib::SetDrawScreen(DX_SCREEN_BACK);
-		
-		//軌跡描画
-		DxLib::DrawGraph(play_area_left, play_area_top, area, true);
-		
-		//自機描画
-		if (!onTheFrame && baseSegment==nullptr) {//もしフレーム上になくベース線もないならバグ
-			DxLib::DrawCircle(playerPos.x, playerPos.y,
-				3 + 3.0*float(abs(frame - 30) / 60.0f),
-				0xff0000,
-				true);
-		}
-		else {
-			DxLib::DrawCircle(playerPos.x, playerPos.y,
-				3 + 3.0*float(abs(frame - 30) / 60.0f),
-				onTheFrame ? 0xaaffaa : 0xffff88,
-				true);
-		}
+		DrawGame(offset, area, playerPos, baseSegment, frame, keypoints, hSegments, vSegments, count);
 
 		frame = (frame + 1) % 60;
-		//デバッグ用
-		//確定線描画
-		DrawDebugLines();
-
-		DrawDebugStatus(keypoints, hSegments, vSegments);
-		DrawFormatString(512, 350, 0xffffff, "fps=%f", 1000.0f/static_cast<float>(GetTickCount() - count));
 		count = GetTickCount();
 
 		DxLib::ScreenFlip();

@@ -151,18 +151,39 @@ OnTheFrame(const Position2& pos){
 ///@param hSegs 水平辺
 ///@param vSegs 垂直辺
 ///@remarks それぞれのセグメントはソート済み(上→下)(左→右)のものとする。
-void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs,bool reverseFlg=false) {
+void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs, bool reverseFlg = false) {
 	hSegs.sort([](const Segment& lval, const Segment& rval)->bool {
-			return lval.a.y < rval.a.y;
+		return lval.a.y < rval.a.y;
 	});
 	vSegs.sort([](const Segment& lval, const Segment& rval)->bool {
-			return lval.a.x < rval.a.x;
+		return lval.a.x < rval.a.x;
+	});
+
+	auto minVSeg = vSegs.front();
+	auto maxVSeg = vSegs.back();
+	//最大最小の間に確定縦辺があれば、それを追加
+	auto it = _vFixedSegs.begin();
+	do{
+		it = find_if(it, _vFixedSegs.end(), [minVSeg, maxVSeg](const Segment& seg)->bool {
+			return (minVSeg.a.x < seg.a.x && seg.a.x < maxVSeg.a.x) && min(minVSeg.a.y, maxVSeg.a.y) <= seg.a.y && seg.b.y <= max(minVSeg.b.y, maxVSeg.b.y);
+		}
+		);
+		if (it == _vFixedSegs.end()) {
+			break;
+		}
+		vSegs.push_back(*it);
+		++it;
+	}while (it != _vFixedSegs.end());
+
+
+	vSegs.sort([](const Segment& lval, const Segment& rval)->bool {
+		return lval.a.x < rval.a.x;
 	});
 	if (reverseFlg) {
 		vSegs.reverse();
 	}
-	auto hit = hSegs.begin();
-	auto top = hSegs.begin()->a.y;
+	auto hIt = hSegs.begin();
+	auto top = hIt->a.y;
 	auto bottom = hSegs.back().a.y;
 	for (int y = top; y <= bottom;++y) {
 		std::vector<Segment> xpoints;
@@ -467,6 +488,17 @@ DrawGame(Vector2 &offset, int area, Position2 &playerPos,
 
 }
 
+void LoopEndProcess(Vector2 &offset, int area, 
+	Position2 &playerPos, Segment * baseSegment, 
+	int &frame, list<Position2> &keypoints, list<Segment> &hSegments, 
+	list<Segment> &vSegments, DWORD &count) {
+	DrawGame(offset, area, playerPos, baseSegment, frame, keypoints, hSegments, vSegments, count);
+	frame = (frame + 1) % 60;
+	count = GetTickCount();
+	DxLib::ScreenFlip();
+
+}
+
 #ifdef _DEBUG
 int main() {
 #else
@@ -639,7 +671,9 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 			auto tmpx = pposx - play_area_left;
 			auto diff = keypoints.empty()?Vector2(0,0):(tmppos - keypoints.back());
 			if (diff.y == 0 && diff.x < 0) {//引き返し不可
-				goto draw_part;
+				LoopEndProcess(offset, area, playerPos, baseSegment, frame,
+					keypoints, hSegments, vSegments, count);
+				continue;
 			}
 			if (IsIntersected(Segment(tmppos, Position2(tmpx,tmppos.y)), vSegments, baseSegment)) {
 				pposx = playerPos.x;
@@ -671,7 +705,8 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 						hSegments.emplace_back(keypoints.back(), tmppos);
 						if (baseSegment == nullptr) {
 							Debug::WriteLine(__FILE__, __LINE__, "baseSegment is nullptr");
-							goto draw_part;
+							LoopEndProcess(offset, area, playerPos, baseSegment, frame,
+								keypoints, hSegments, vSegments, count);
 						}
 						//もし右と左をつなぐような線を引いている場合、ベースがどこにあるのかを確定させたい
 						auto baseIt = find_if(_vFixedSegs.begin(), _vFixedSegs.end(), [baseSegment](const Segment& seg)->bool {
@@ -774,14 +809,9 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 			playerPos.x = pposx;
 			lastDirection = Direction::left;
 		}
-draw_part:
-		
-		DrawGame(offset, area, playerPos, baseSegment, frame, keypoints, hSegments, vSegments, count);
+		LoopEndProcess(offset,area,playerPos,baseSegment,frame,
+			keypoints,hSegments,vSegments,count);
 
-		frame = (frame + 1) % 60;
-		count = GetTickCount();
-
-		DxLib::ScreenFlip();
 	}
 
 	DxLib_End();

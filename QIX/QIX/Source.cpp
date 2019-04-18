@@ -193,9 +193,9 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs, bool revers
 		auto drawcount= xpoints.size();
 		for (int i = 0; i < drawcount-1; i+=2) {
 			//上辺もしくは下辺であり、その向こうにも交差点がある場合(向こうの交差点までを塗りつぶす)
-			// ＿|       |ここまで塗りつぶし対象
-			//|　        |
-			//↑こういう場合
+			//→ ＿|_ _ _ _|ここまで塗りつぶし対象
+			//  |　        |
+			//  ↑こういう場合
 			if ((i + 2) < drawcount&&
 				(y == xpoints[i].a.y &&
 				y == xpoints[i + 1].b.y ) || 
@@ -212,13 +212,18 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs, bool revers
 					//  ￣|
 					if (y == xpoints[i].b.y && y == xpoints[i + 1].a.y) {
 						_hFixedSegs.emplace_back(Position2(xpoints[i].b.x, y), Position2(xpoints[i + 1].b.x, y), Direction::down);
-						_vFixedSegs.emplace_back(xpoints[i].a, xpoints[i].b, d1);
+						//二重登録の防止
+						if (count(_vFixedSegs.begin(), _vFixedSegs.end(), xpoints[i]) == 0) {
+							_vFixedSegs.emplace_back(xpoints[i], d1);
+						}
 					}
 					//    |
 					// |￣
 					else if (y == xpoints[i].a.y && y == xpoints[i + 1].b.y) {
 						_hFixedSegs.emplace_back(xpoints[i].a, xpoints[i + 1].b, Direction::up);
-						_vFixedSegs.emplace_back(xpoints[i].a, xpoints[i].b, d1);
+						if (count(_vFixedSegs.begin(), _vFixedSegs.end(), xpoints[i]) == 0) {
+							_vFixedSegs.emplace_back(xpoints[i], d1);
+						}
 					}
 				}
 
@@ -232,7 +237,7 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs, bool revers
 				++i;//消費しました(そのむこうまで塗りつぶしているのでカウントを進める)
 			}
 			//上のやつと逆パターン(ソートしてるから逆の場合左二つで終わってしまう…)
-			//|       |＿　
+			//|_ _ _ _|＿←　
 			//|　        |
 			//↑こういう場合
 			else if ((i + 2) < drawcount&&

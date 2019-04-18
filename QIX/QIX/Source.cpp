@@ -208,26 +208,24 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs, bool revers
 					if (reverseFlg) {
 						swap(d1, d2);
 					}
-					// |  
+					// |Å© 
 					//  ÅP|
 					if (y == xpoints[i].b.y && y == xpoints[i + 1].a.y) {
 						_hFixedSegs.emplace_back(Position2(xpoints[i].b.x, y), Position2(xpoints[i + 1].b.x, y), Direction::down);
 						//ìÒèdìoò^ÇÃñhé~
-						if (count(_vFixedSegs.begin(), _vFixedSegs.end(), xpoints[i]) == 0) {
-							_vFixedSegs.emplace_back(xpoints[i], d1);
-						}
+						RegisterFixedVerticalSegments(xpoints[i], d1);
+						RegisterFixedVerticalSegments(xpoints[i + 1], d1);
 					}
 					//    |
-					// |ÅP
+					// |ÅPÅ©
 					else if (y == xpoints[i].a.y && y == xpoints[i + 1].b.y) {
 						_hFixedSegs.emplace_back(xpoints[i].a, xpoints[i + 1].b, Direction::up);
-						if (count(_vFixedSegs.begin(), _vFixedSegs.end(), xpoints[i]) == 0) {
-							_vFixedSegs.emplace_back(xpoints[i], d1);
-						}
+						RegisterFixedVerticalSegments(xpoints[i], d1);
+						RegisterFixedVerticalSegments(xpoints[i + 1], d1);
 					}
 				}
 
-				DrawBox(xpoints[i].a.x, y, xpoints[i+2].a.x, y + 1, 0xffaaaa, true);
+				//DrawBox(xpoints[i].a.x, y, xpoints[i+2].a.x, y + 1, 0xffaaaa, true);
 				if (reverseFlg) {
 					DxLib::DrawRectGraph(xpoints[i+2].a.x, y, xpoints[i+2].a.x, y, abs(xpoints[i+2].a.x - xpoints[i].a.x), 1, rewardH, false);
 				}
@@ -255,23 +253,25 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs, bool revers
 					// |ÅP
 					if (y == xpoints[i+1].a.y && y == xpoints[i + 2].b.y) {
 						_hFixedSegs.emplace_back(Position2(xpoints[i+1].b.x, y), Position2(xpoints[i + 2].b.x, y), Direction::down);
-						_vFixedSegs.emplace_back(xpoints[i+1].a, xpoints[i+1].b, d2);
+						RegisterFixedVerticalSegments(xpoints[i + 1], d2);
+						RegisterFixedVerticalSegments(xpoints[i + 2], d2);
 					}
 					//|  
 					// ÅP|
 					else if (y == xpoints[i+1].b.y && y == xpoints[i + 2].a.y) {
 						_hFixedSegs.emplace_back(xpoints[i+1].b, xpoints[i + 2].a, Direction::up);
-						_vFixedSegs.emplace_back(xpoints[i+1].a, xpoints[i+1].b, d2);
+						RegisterFixedVerticalSegments(xpoints[i+1], d2);
+						RegisterFixedVerticalSegments(xpoints[i + 2], d2);
 					}
 				}
 
 				if (reverseFlg) {
-					DrawBox(xpoints[i + 2].a.x, y, xpoints[i].a.x, y + 1, 0xffaaaa, true);
+					//DrawBox(xpoints[i + 2].a.x, y, xpoints[i].a.x, y + 1, 0xffaaaa, true);
 					DxLib::DrawRectGraph(xpoints[i + 2].a.x, y, xpoints[i + 2].a.x, y, abs(xpoints[i + 2].a.x - xpoints[i].a.x), 1, rewardH, false);
 					
 				}
 				else {
-					DrawBox(xpoints[i].a.x, y, xpoints[i + 2].a.x, y + 1, 0xffaaaa, true);
+					//DrawBox(xpoints[i].a.x, y, xpoints[i + 2].a.x, y + 1, 0xffaaaa, true);
 					DxLib::DrawRectGraph(xpoints[i].a.x, y, xpoints[i].a.x, y, abs(xpoints[i + 2].a.x - xpoints[i].a.x), 1, rewardH, false);
 				}
 				++i;//è¡îÔÇµÇ‹ÇµÇΩ(ÇªÇÃÇﬁÇ±Ç§Ç‹Ç≈ìhÇËÇ¬Ç‘ÇµÇƒÇ¢ÇÈÇÃÇ≈ÉJÉEÉìÉgÇêiÇﬂÇÈ)
@@ -279,7 +279,7 @@ void FillRange(std::list<Segment>& hSegs, std::list<Segment>& vSegs, bool revers
 			else {//í èÌìhÇË
 				RegisterFixedSegment(y, xpoints, i, reverseFlg);
 
-				DrawBox(xpoints[i].a.x, y, xpoints[i+1].a.x, y + 1, 0xffaaaa, true);
+				//DrawBox(xpoints[i].a.x, y, xpoints[i+1].a.x, y + 1, 0xffaaaa, true);
 				if (reverseFlg) {
 					DxLib::DrawRectGraph(xpoints[i+1].a.x, y, xpoints[i+1].a.x, y, abs(xpoints[i + 1].a.x - xpoints[i].a.x), 1, rewardH, false);
 				}
@@ -672,7 +672,6 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 			lastDirection = Direction::down;
 		}else if (keystate[KEY_INPUT_RIGHT] && playerPos.x < play_area_right) {
 			auto pposx = min(play_area_right,playerPos.x + 2);
-			//auto tmppos = playerPos - offset;
 			auto tmpx = pposx - play_area_left;
 			auto diff = keypoints.empty()?Vector2(0,0):(tmppos - keypoints.back());
 			if (diff.y == 0 && diff.x < 0) {//à¯Ç´ï‘Çµïsâ¬
@@ -712,6 +711,7 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 							Debug::WriteLine(__FILE__, __LINE__, "baseSegment is nullptr");
 							LoopEndProcess(offset, area, playerPos, baseSegment, frame,
 								keypoints, hSegments, vSegments, count);
+							continue;
 						}
 						//Ç‡ÇµâEÇ∆ç∂ÇÇ¬Ç»ÇÆÇÊÇ§Ç»ê¸Çà¯Ç¢ÇƒÇ¢ÇÈèÍçáÅAÉxÅ[ÉXÇ™Ç«Ç±Ç…Ç†ÇÈÇÃÇ©ÇämíËÇ≥ÇπÇΩÇ¢
 						auto baseIt = find_if(_vFixedSegs.begin(), _vFixedSegs.end(), [baseSegment](const Segment& seg)->bool {

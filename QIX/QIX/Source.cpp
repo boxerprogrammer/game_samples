@@ -525,7 +525,7 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 	
 	ChangeWindowMode(true);
 	DxLib::SetWindowText("QIX 000000_川野竜一");
-	DxLib::SetGraphMode(scr_w+200, scr_h, 32);//デバッグ用+200
+	DxLib::SetGraphMode(scr_w, scr_h, 32);//デバッグ用
 	DxLib_Init();
 	DxLib::SetDrawScreen(DX_SCREEN_BACK);
 	ostringstream oss;
@@ -543,31 +543,10 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 		play_area_bottom-play_area_top, 
 		true);
 	
-	bool firstUp = true;
-
+	
 	Direction lastDirection = Direction::up;
 	std::list<Position2> keypoints;
 
-
-	//右を判定。直つなぎは数に入れない。
-	auto GetRight = [](const Segment& hSeg, const Segment& vSeg)->int {
-		if (hSeg.b == vSeg.b || hSeg.a == vSeg.a || hSeg.b == vSeg.a || hSeg.a == vSeg.b)return -1;
-		if (hSeg.a.x > vSeg.a.x)return -1;
-		if (vSeg.a.y <= hSeg.a.y && hSeg.a.y <= vSeg.b.y) {
-			//あたりました！！
-			return vSeg.a.x;
-		}
-		return -1;
-	};
-	auto SearchMinRight=[GetRight](const Segment& hseg, const std::list<Segment>& segments)->int {
-		int minim = play_area_right-play_area_left;
-		for (auto& s : segments) {
-			auto right = GetRight(hseg, s);
-			if (right == -1)continue;
-			minim =min(minim,right);
-		}
-		return minim;
-	};
 	std::list<Segment> hSegments;//水平方向線分
 	std::list<Segment> vSegments;//垂直方向線分
 	
@@ -590,12 +569,14 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 	bool _lastOnTheFrame = false;
 	int frame = 30;
 	auto tmppos = playerPos - offset;
+	char lastKeystate[256] = {};
 	while (!ProcessMessage()) {
 		_lastTmpPos = tmppos;
 		tmppos = playerPos - offset;
 		_lastOnTheFrame = onTheFrame;
 		onTheFrame = OnTheFrame(tmppos);
 		ClearDrawScreen();
+		copy(begin(keystate),end(keystate),begin(lastKeystate));
 		DxLib::GetHitKeyStateAll(keystate);
 		if (keystate[KEY_INPUT_UP]&&playerPos.y > play_area_top ) {
 			auto pposy = max(play_area_top,playerPos.y -2);
@@ -819,10 +800,33 @@ int WINAPI WinMain(HINSTANCE , HINSTANCE, LPSTR,int){
 					}
 				}
 			}
-			
+
 			playerPos.x = pposx;
 			lastDirection = Direction::left;
 		}
+
+		if (!lastKeystate[KEY_INPUT_R] && keystate[KEY_INPUT_R]) {
+			playerPos.x = play_area_left + (play_area_right - play_area_left) / 2;
+			playerPos.y = play_area_bottom;//
+			onTheFrame = true;
+			baseSegment = nullptr;//出発地点のセグメント
+			_lastOnTheFrame = false;
+			_vFixedSegs.clear();
+			_hFixedSegs.clear();
+			vSegments.clear();
+			hSegments.clear();
+			keypoints.clear();
+
+			_vFixedSegs.emplace_back(rightseg, rightseg.inner);
+			_vFixedSegs.emplace_back(leftseg, leftseg.inner);
+			_hFixedSegs.emplace_back(topseg, topseg.inner);
+			_hFixedSegs.emplace_back(bottomseg, bottomseg.inner);
+
+			SetDrawScreen(area);
+			ClearDrawScreen();
+			SetDrawScreen(DX_SCREEN_BACK);
+		}
+
 		LoopEndProcess(offset,area,playerPos,baseSegment,frame,
 			keypoints,hSegments,vSegments,count);
 

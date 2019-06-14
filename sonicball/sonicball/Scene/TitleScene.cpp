@@ -12,8 +12,8 @@
 using namespace std;
 
 const int title_offset_y = -120;
-const int title_portal_offsetx = 34;
-const int title_portal_offsety = -8;
+const int title_portal_offsetx = 40;
+const int title_portal_offsety = -12;
 const int portal_anim_num_y = 3;
 const int portal_anim_num_x = 5;
 //todo 40Çtitle_portal_offsetxÇ÷
@@ -21,7 +21,7 @@ const int portal_anim_num_x = 5;
 TitleScene::TitleScene(SceneController& controller):Scene(controller)
 {
 	_startSE = DxLib::LoadSoundMem("se/start.mp3");
-	_titlepng=DxLib::LoadGraph("img/title/portal2d_logo.png");
+	_titlepng=DxLib::LoadGraph("img/title/sonic_logo.png");
 	_logoportalH= DxLib::LoadGraph("img/title/title_gate.png");
 	_pressstartH = DxLib::LoadGraph("img/title/pressstart.png");
 	GetGraphSize(_logoportalH, &_portalSize.w, &_portalSize.h);
@@ -87,6 +87,8 @@ TitleScene::NormalUpdate(const Input& input) {
 
 	int w, h;
 	GetWindowSize(&w, &h);
+
+	//ÉçÉSï\é¶
 	DxLib::DrawGraph(_titlepos.x, _titlepos.y, _titlepng, true);
 	DxLib::DrawRectGraph(_titlepos.x + title_portal_offsetx, _titlepos.y + title_portal_offsety,
 		portalSrc.x, portalSrc.y, _portalSize.w, _portalSize.h, _logoportalH, true);
@@ -111,8 +113,14 @@ TitleScene::BlinkUpdate(const Input& input) {
 	DxLib::DrawRectGraph(_titlepos.x + title_portal_offsetx, _titlepos.y + title_portal_offsety,
 		portalSrc.x, portalSrc.y, _portalSize.w, _portalSize.h, _logoportalH, true);
 
+	int w, h;
+	GetWindowSize(&w, &h);
+
+	//push start button
 	if ((_frameCounter / 8) % 2 == 1) {
-		DxLib::DrawGraph((768 - _pressstartSize.w) / 2, 300, _pressstartH, true);
+		SetDrawBlendMode(DX_BLENDMODE_ADD, abs((_frameCounter / 13 % 3) - 1) * 64 + 192);
+		DxLib::DrawGraph((w - _pressstartSize.w) / 2, (h - _pressstartSize.h) / 2, _pressstartH, true);
+		SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
 	}
 	_frameCounter = (_frameCounter + 1) % 320;
 	if (--_wait == 0) {

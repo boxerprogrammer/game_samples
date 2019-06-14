@@ -5,8 +5,8 @@
 #include<DxLib.h>
 #include<cmath>
 
-constexpr int SCREEN_WIDTH = 1280;
-constexpr int SCREEN_HEIGHT = 720;
+constexpr int SCREEN_WIDTH = 1024;
+constexpr int SCREEN_HEIGHT = 576;
 
 
 Size

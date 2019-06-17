@@ -18,12 +18,23 @@ const int portal_anim_num_y = 3;
 const int portal_anim_num_x = 5;
 //todo 40Çtitle_portal_offsetxÇ÷
 
+void
+TitleScene::ImgInfo::Load(const char* path) {
+	handle = DxLib::LoadGraph(path);
+	GetGraphSize(handle, &size.w, &size.h);
+}
 TitleScene::TitleScene(SceneController& controller):Scene(controller)
 {
 	_startSE = DxLib::LoadSoundMem("se/start.mp3");
 	_titlepng=DxLib::LoadGraph("img/title/sonic_logo.png");
 	_logoportalH= DxLib::LoadGraph("img/title/title_gate.png");
 	_pressstartH = DxLib::LoadGraph("img/title/pressstart.png");
+	_bgimgs.mostbackImg.Load("img/title/mostback.png");
+	_bgimgs.farImg.Load("img/title/far.png");
+	_bgimgs.middleImg.Load("img/title/middle.png");
+	_bgimgs.foregroundImg.Load("img/title/foreground.png");
+	_bgimgs.mostforeImg.Load("img/title/mostfore.png");
+
 	GetGraphSize(_logoportalH, &_portalSize.w, &_portalSize.h);
 	_portalSize.w = 48;//àÍÇ¬ìñÇΩÇËÇÃïù
 	_portalSize.h = 96;//àÍÇ¬ìñÇΩÇËÇÃçÇ
@@ -65,11 +76,58 @@ TitleScene::FadeinUpdate(const Input& input) {
 	}
 	int w, h;
 	GetWindowSize(&w, &h);
+	
+	
+	//É^ÉCÉgÉã
+	DxLib::SetDrawBlendMode(DX_BLENDMODE_ALPHA, 255 - 255 * ((float)_wait) / 60.0f);
+	//îwåiÇÃï\é¶
+	DrawTitleBackground(w, h);
+
+
+	DxLib::SetDrawBlendMode(DX_BLENDMODE_MUL, 64);
+	DrawBox(0, 0, w, h, 0x444444, true);
+
 	DxLib::SetDrawBlendMode(DX_BLENDMODE_ALPHA, 255 - 255 * ((float)_wait) / 60.0f);
 	DxLib::DrawGraph(_titlepos.x, _titlepos.y, _titlepng, true);
 	DxLib::DrawRectGraph(_titlepos.x + title_portal_offsetx, _titlepos.y+ title_portal_offsety,
 		0, 0, _portalSize.w, _portalSize.h, _logoportalH, true);
+
+
+
+
 	//DxLib::DrawGraph((w - _pressstartSize.w) / 2,( h-_pressstartSize.h)/2, _pressstartH, true);
+}
+void TitleScene::DrawTitleBackground(int w, int h)
+{
+	//ç≈îwñ 
+	DrawExtendGraph(0, 0, w, h, _bgimgs.mostbackImg.handle, false);
+
+	//îwñ 
+	DrawExtendGraph(-(_bgFrame/6%w), h - ((float)w / (float)_bgimgs.farImg.size.w) *_bgimgs.farImg.size.h,
+		w - (_bgFrame/6%w), h, _bgimgs.farImg.handle, true);
+	DrawExtendGraph(w-(_bgFrame / 6 % w), h - ((float)w / (float)_bgimgs.farImg.size.w) *_bgimgs.farImg.size.h,
+		w*2 - (_bgFrame / 6 % w), h, _bgimgs.farImg.handle, true);
+	
+	//íÜä‘
+	DrawExtendGraph(-(_bgFrame/2%w), h - ((float)w / (float)_bgimgs.mostbackImg.size.w) *_bgimgs.middleImg.size.h,
+		w - (_bgFrame/2%w), h, _bgimgs.middleImg.handle, true);
+	DrawExtendGraph(w-(_bgFrame / 2 % w), h - ((float)w / (float)_bgimgs.mostbackImg.size.w) *_bgimgs.middleImg.size.h,
+		w*2 - (_bgFrame / 2 % w), h, _bgimgs.middleImg.handle, true);
+	
+	//éËëO
+	DrawExtendGraph(-(_bgFrame%w), h - ((float)w / (float)_bgimgs.mostbackImg.size.w) *_bgimgs.foregroundImg.size.h,
+		w - (_bgFrame%w), h, _bgimgs.foregroundImg.handle, true);
+	DrawExtendGraph(2-(_bgFrame%w), h - ((float)w / (float)_bgimgs.mostbackImg.size.w) *_bgimgs.foregroundImg.size.h,
+		w*2 - (_bgFrame%w), h, _bgimgs.foregroundImg.handle, true);
+
+
+	//ç≈ëOñ 
+	DrawExtendGraph(-(_bgFrame*2%w), h - ((float)w / (float)_bgimgs.mostbackImg.size.w) *_bgimgs.mostforeImg.size.h,
+		w-(_bgFrame*2%w), h, _bgimgs.mostforeImg.handle, true);
+	DrawExtendGraph(w-(_bgFrame * 2 % w), h - ((float)w / (float)_bgimgs.mostbackImg.size.w) *_bgimgs.mostforeImg.size.h,
+		w*2 - (_bgFrame * 2 % w), h, _bgimgs.mostforeImg.handle, true);
+
+	++_bgFrame;
 }
 void 
 TitleScene::NormalUpdate(const Input& input) {
@@ -88,6 +146,14 @@ TitleScene::NormalUpdate(const Input& input) {
 	int w, h;
 	GetWindowSize(&w, &h);
 
+
+	//îwåiÇÃï\é¶
+	DrawTitleBackground(w, h);
+
+	DxLib::SetDrawBlendMode(DX_BLENDMODE_MUL, 64);
+	DrawBox(0, 0, w, h, 0x444444, true);
+	DxLib::SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+
 	//ÉçÉSï\é¶
 	DxLib::DrawGraph(_titlepos.x, _titlepos.y, _titlepng, true);
 	DxLib::DrawRectGraph(_titlepos.x + title_portal_offsetx, _titlepos.y + title_portal_offsety,
@@ -98,10 +164,19 @@ TitleScene::NormalUpdate(const Input& input) {
 		SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
 	}
 	_frameCounter = (_frameCounter + 1)%320 ;
+
 	
 }
 void 
 TitleScene::BlinkUpdate(const Input& input) {
+	int w, h;
+	GetWindowSize(&w, &h);
+	//îwåiÇÃï\é¶
+	DrawTitleBackground(w, h);
+	DxLib::SetDrawBlendMode(DX_BLENDMODE_MUL, 64);
+	DrawBox(0, 0, w, h, 0x444444, true);
+	DxLib::SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+
 	DxLib::DrawGraph(_titlepos.x, _titlepos.y, _titlepng, true);
 
 	const auto portal_anim_num = portal_anim_num_x * portal_anim_num_y;
@@ -113,8 +188,6 @@ TitleScene::BlinkUpdate(const Input& input) {
 	DxLib::DrawRectGraph(_titlepos.x + title_portal_offsetx, _titlepos.y + title_portal_offsety,
 		portalSrc.x, portalSrc.y, _portalSize.w, _portalSize.h, _logoportalH, true);
 
-	int w, h;
-	GetWindowSize(&w, &h);
 
 	//push start button
 	if ((_frameCounter / 8) % 2 == 1) {

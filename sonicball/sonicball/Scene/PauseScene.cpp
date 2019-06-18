@@ -6,6 +6,7 @@
 
 constexpr int expand_time = 20;
 constexpr int scale_time = 60;
+constexpr int menu_id_count = 3;
 
 using namespace std;
 
@@ -70,6 +71,12 @@ PauseScene::UpdateMain(const Input& input) {
 		DxLib::PlaySoundMem(_closeSE, DX_PLAYTYPE_BACK);
 		_updater = &PauseScene::UpdateCloser;
 	}
+	if (input.IsTriggered(0, "up")) {
+		_currentCursorId=(_currentCursorId + menu_id_count - 1) % menu_id_count;
+	}
+	if (input.IsTriggered(0, "down")) {
+		_currentCursorId = (_currentCursorId +1) % menu_id_count;
+	}
 }
 
 void
@@ -113,10 +120,13 @@ PauseScene::DrawMain() {
 	Application& app = Application::Instance();
 	auto wsize = app.Instance().GetConfig().GetScreenSize();
 	SetDrawScreen(_inframeH);
+	ClearDrawScreen();
 	DrawString(200, 10, "Pause", 0xffffff);
 	DrawString(150, 110, "Command List", 0xffffff);
 	DrawString(150, 210, "Back to Title", 0xffffff);
 	DrawString(150, 310, "Resume GamePlay", 0xffffff);
+	DrawCircle(125, 112 + _currentCursorId * 100 + 5, 10, 0xff8888, false, 3);
+	DrawCircle(125, 112 + _currentCursorId * 100 + 5, 5, 0xff8888, true);
 	SetDrawScreen(DX_SCREEN_BACK);
 
 	int h = (scale_time - _frame)*(500.0f / static_cast<float>(scale_time));

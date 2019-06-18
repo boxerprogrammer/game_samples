@@ -9,6 +9,7 @@ private:
 	int _frame;
 	int _openSE;
 	int _closeSE;
+	int _currentCursorId = 0;
 	typedef void (PauseScene::*UpdateFunc_t)(const Input& input);
 	typedef void (PauseScene::*DrawFunc_t)();
 	UpdateFunc_t _updater;

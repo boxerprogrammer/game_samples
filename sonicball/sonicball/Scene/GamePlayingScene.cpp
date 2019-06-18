@@ -7,7 +7,7 @@
 #include"PauseScene.h"
 
 using namespace std;
-constexpr int GROUND_LINE = 640;
+constexpr int GROUND_LINE = 500;
 
 namespace{
 	struct Fragment {

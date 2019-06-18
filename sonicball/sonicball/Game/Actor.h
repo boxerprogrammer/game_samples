@@ -2,12 +2,14 @@
 
 //プロトタイプ宣言
 class Input;
-
+class Camera;
 ///画面上で動く奴基底クラス
 class Actor
 {
+protected:
+	Camera& _camera;
 public:
-	Actor();
+	Actor(Camera& cam);
 	virtual ~Actor();
 	///状態や座標やアニメーションフレーム更新
 	///@param input 入力

@@ -1,6 +1,7 @@
 #include "Player.h"
 #include"../Input/Input.h"
-Player::Player()
+
+Player::Player(Camera& cam):Actor(cam)
 {
 }
 

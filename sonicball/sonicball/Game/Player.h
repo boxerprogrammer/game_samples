@@ -8,7 +8,7 @@
 class Player : public Actor
 {
 public:
-	Player();
+	Player(Camera& cam);
 	~Player();
 	///XV
 	void Update(const Input& input) override final;
